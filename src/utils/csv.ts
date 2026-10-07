@@ -1,15 +1,15 @@
 import { readFile, writeFile } from "./file.js"
 
-export const parseCSV = csvFilepath => {
+export const parseCSV = <T extends Record<string, string>>(csvFilepath: string): T[] => {
   const csvContent = readFile(csvFilepath)
 
   const [headersRow, ...valuesRows] = csvContent.split(/\r?\n/)
   const headers = headersRow.split(',')
 
-  const parsedCSV = []
+  const parsedCSV: T[] = []
   valuesRows.forEach(row => {
     if (row != '') {
-      const parsedRow = {}
+      const parsedRow: Record<string, string> = {}
       const values = row.split(',')
 
       if (values.length !== headers.length) {
@@ -20,14 +20,14 @@ export const parseCSV = csvFilepath => {
         parsedRow[header] = values[index]
       })
 
-      parsedCSV.push(parsedRow)
+      parsedCSV.push(parsedRow as T)
     }
   })
 
   return parsedCSV
 }
 
-export const createCSV = (filepath, headers, data) => {
+export const createCSV = <T extends Record<string, string>>(filepath: string, headers: readonly (keyof T)[], data: T[]) => {
   const headersRow = headers.join(',')
   const valuesRows = data.map(values => headers.map(h => values[h]).join(','))
   

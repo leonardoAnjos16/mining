@@ -1,6 +1,6 @@
 import { runCommand } from './process.js'
 
-export const getMergeCommits = (repoPath, sinceDate, untilDate) => {
+export const getMergeCommits = (repoPath: string, sinceDate: string, untilDate: string) => {
   const commandParameters = ['log', '--merges', '--format=%H']
   if (sinceDate) commandParameters.push(`--since=${sinceDate}`)
   if (untilDate) commandParameters.push(`--until=${untilDate}`)
@@ -9,7 +9,7 @@ export const getMergeCommits = (repoPath, sinceDate, untilDate) => {
   return logOutput?.trim()?.split('\n')
 }
 
-export const getParentCommits = (repoPath, mergeCommit) => {
+export const getParentCommits = (repoPath: string, mergeCommit: string) => {
   const revListOutput = runCommand('git', ['rev-list', '--parents', '-n', '1', mergeCommit], { cwd: repoPath })
 
   if (!revListOutput) return
@@ -18,11 +18,11 @@ export const getParentCommits = (repoPath, mergeCommit) => {
   return parents
 }
 
-export const getBaseCommit = (repoPath, leftCommit, rightCommit) => {
+export const getBaseCommit = (repoPath: string, leftCommit: string, rightCommit: string) => {
   return runCommand('git', ['merge-base', leftCommit, rightCommit], { cwd: repoPath })?.trim()
 }
 
-export const getModifiedFiles = (repoPath, commit, baseCommit) => {
+export const getModifiedFiles = (repoPath: string, commit: string, baseCommit: string) => {
   const diffOutput = runCommand('git', ['-c', 'diff.renames=false', 'diff', '--name-only', '--diff-filter=M', baseCommit, commit], { cwd: repoPath })
 
   if (!diffOutput) return []

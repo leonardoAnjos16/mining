@@ -1,4 +1,4 @@
-export const shuffle = (A, seed) => {
+export const shuffle = (A: any[], seed: number) => {
   const result = [...A]
 
   let state = seed

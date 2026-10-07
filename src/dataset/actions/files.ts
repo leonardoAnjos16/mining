@@ -1,22 +1,31 @@
 import path from 'path'
 import { COMMITS_ACTION } from "./commits.js"
-import { getActionOutputPath } from "../index.js"
+import { getActionOutputPath, Repo } from "../index.js"
 import { createCSV, parseCSV } from '../../utils/csv.js'
 import { shuffle } from '../../utils/random.js'
 import { getBaseCommit, getModifiedFiles, getParentCommits } from '../../utils/git.js'
 import { dirExists, fileExists } from '../../utils/file.js'
 import { getRepoPath } from './clone.js'
+import { DatasetOptions } from '../../index.js'
+
+type FileContext = {
+  baseCommit: string
+  leftCommit: string
+  rightCommit: string
+  mergeCommit: string
+  filepath: string
+}
 
 const name = 'files'
 
-const isRelevantFile = (filepath, options) => {
+const isRelevantFile = (filepath: string, options: DatasetOptions) => {
   if (filepath.startsWith('vendor/')) return false
   if (!options.extensions.some(extension => filepath.endsWith(extension))) return false
 
   return true
 }
 
-const runAction = (inputRepos, options) => {
+const runAction = (inputRepos: Repo[], options: DatasetOptions) => {
   const outputPath = getActionOutputPath(name, options)
   inputRepos.forEach(({ name }) => {
     const commitsActionOutputPath = getActionOutputPath(COMMITS_ACTION.name, options)
@@ -27,7 +36,7 @@ const runAction = (inputRepos, options) => {
       commits = shuffle(commits, options.randomSeed)
     }
     
-    const files = []
+    const files: FileContext[] = []
     let commitsCount = 0
     
     const repoPath = getRepoPath(name, options)
@@ -63,14 +72,14 @@ const runAction = (inputRepos, options) => {
     }
 
     const filepath = path.join(outputPath, `${name}.csv`)
-    const headers = ['baseCommit', 'leftCommit', 'rightCommit', 'mergeCommit', 'filepath']
+    const headers = ['baseCommit', 'leftCommit', 'rightCommit', 'mergeCommit', 'filepath'] as const
     createCSV(filepath, headers, files)
 
     console.log(`Found ${commitsCount} fitting merge commits with ${files.length} fitting files for project ${name}`)
   })
 }
 
-const isDone = (inputRepos, options) => {
+const isDone = (inputRepos: Repo[], options: DatasetOptions) => {
   const outputPath = getActionOutputPath(name, options)
   if (!dirExists(outputPath)) return false
 

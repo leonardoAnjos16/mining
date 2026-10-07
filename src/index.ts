@@ -1,6 +1,15 @@
 import { Command } from "commander"
 import { getAvailableActions, runAction } from "./dataset/index.js"
 
+export type DatasetOptions = {
+  output: string
+  since: string
+  until: string
+  randomSeed: number
+  maxCommits: number
+  extensions: string[]
+}
+
 const DEFAULT_OUTPUT_DIR = 'output'
 const DEFAULT_MAX_COMMITS = Number.MAX_SAFE_INTEGER
 
@@ -31,6 +40,6 @@ program
     extensions => extensions.split(','),
     []
   )
-  .action(runAction)
+  .action((action: string, inputFile: string, options: DatasetOptions) => runAction(action, inputFile, options))
 
 program.parse()
