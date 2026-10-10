@@ -10,7 +10,8 @@ export const runCommand = (command: string, parameters: string[], { cwd, showOut
     const options: ExecFileSyncOptions = {
       cwd,
       encoding: 'utf8',
-      maxBuffer: 100 * 1024 * 1024 // 100 MB
+      maxBuffer: 100 * 1024 * 1024, // 100 MB
+      stdio: ['ignore', 'pipe', 'pipe']
     }
 
     if (showOutput) {

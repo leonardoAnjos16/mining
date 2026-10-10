@@ -5,7 +5,7 @@ import { buildGitMergeFileRunner } from './gitMergeFile.js'
 import { buildMergirafRunner } from './mergiraf.js'
 import { buildLastMergeRunner } from './lastMerge.js'
 
-type MergeTool = {
+export type MergeTool = {
   name: string
   runTool: (leftFile: string, baseFile: string, rightFile: string, mergeFile: string) => void
 }

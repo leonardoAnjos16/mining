@@ -7,15 +7,7 @@ import { getBaseCommit, getModifiedFiles, getParentCommits } from '../../utils/g
 import { dirExists, fileExists } from '../../utils/file.js'
 import { getRepoPath } from './clone.js'
 import { DatasetOptions } from '../index.js'
-import { Repo } from '../../index.js'
-
-type FileContext = {
-  baseCommit: string
-  leftCommit: string
-  rightCommit: string
-  mergeCommit: string
-  filepath: string
-}
+import { MergeScenarioFile, Repo } from '../../index.js'
 
 const name = 'files'
 
@@ -37,7 +29,7 @@ const runAction = (inputRepos: Repo[], options: DatasetOptions) => {
       commits = shuffle(commits, options.randomSeed)
     }
     
-    const files: FileContext[] = []
+    const files: MergeScenarioFile[] = []
     let commitsCount = 0
     
     const repoPath = getRepoPath(name, options)

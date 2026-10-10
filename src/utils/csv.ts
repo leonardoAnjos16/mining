@@ -27,7 +27,7 @@ export const parseCSV = <T extends Record<string, string>>(csvFilepath: string):
   return parsedCSV
 }
 
-export const createCSV = <T extends Record<string, string>>(filepath: string, headers: readonly (keyof T)[], data: T[]) => {
+export const createCSV = <T extends Record<string, string | number | boolean>>(filepath: string, headers: readonly (keyof T)[], data: T[]) => {
   const headersRow = headers.join(',')
   const valuesRows = data.map(values => headers.map(h => values[h]).join(','))
   
