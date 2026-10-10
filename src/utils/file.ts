@@ -1,6 +1,11 @@
 import fs from 'fs'
 import path from 'path'
 
+export const getExtension = (filepath: string) => {
+  const parts = filepath.split('.')
+  return parts[parts.length - 1]
+}
+
 export const dirExists = (path: string) => fs.existsSync(path) && fs.statSync(path).isDirectory()
 
 export const fileExists = (path: string) => fs.existsSync(path) && fs.statSync(path).isFile()

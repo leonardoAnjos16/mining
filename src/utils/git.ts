@@ -30,3 +30,7 @@ export const getModifiedFiles = (repoPath: string, commit: string, baseCommit: s
   const uniqueModifiedFiles = new Set(diffOutput.trim().split('\n').filter(Boolean))
   return [...uniqueModifiedFiles]
 }
+
+export const getFileFromCommit = (repoPath: string, commit: string, filepath: string) => {
+  return runCommand('git', ['show', `${commit}:${filepath}`], { cwd: repoPath })
+}

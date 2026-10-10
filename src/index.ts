@@ -1,14 +1,7 @@
 import { Command } from "commander"
 import { getAvailableActions, runAction } from "./dataset/index.js"
-
-export type DatasetOptions = {
-  output: string
-  since: string
-  until: string
-  randomSeed: number
-  maxCommits: number
-  extensions: string[]
-}
+import { runTool } from "./merge/index.js"
+import { getAvailableTools } from "./utils/tools/index.js"
 
 const DEFAULT_OUTPUT_DIR = 'output'
 const DEFAULT_MAX_COMMITS = Number.MAX_SAFE_INTEGER
@@ -23,7 +16,7 @@ program
   .command('dataset')
   .description('Mine GitHub repositories and build dataset')
   .argument('<action>', `action to run. Must be one of: ${JSON.stringify(getAvailableActions())}`)
-  .argument('<inputFile>', 'path to the input CSV file')
+  .argument('<input-file>', 'path to the input CSV file')
   .option('-o, --output <path>', `path to the output directory. Defaults to: ${DEFAULT_OUTPUT_DIR}`, DEFAULT_OUTPUT_DIR)
   .option('-s, --since <date>', 'process merge commits starting from this date')
   .option('-u, --until <date>', 'process merge commits up to this date')
@@ -40,6 +33,17 @@ program
     extensions => extensions.split(','),
     []
   )
-  .action((action: string, inputFile: string, options: DatasetOptions) => runAction(action, inputFile, options))
+  .action(runAction)
+
+program
+  .command('merge')
+  .description('Run merge tool for the versions of one file in a merge commit')
+  .argument(`<tool>', 'merge tool to run. Must be one of: ${JSON.stringify(getAvailableTools())}`)
+  .argument('<project-path>', 'path to the project in which the merge tool will run')
+  .argument('<merge-commit>', 'hash of the merge commit in which the merge tool will run')
+  .argument('<filepath>', 'path to the file in which the merge tool will run')
+  .option('-o, --output <path>', `path to the ouput directory. Defaults to: ${DEFAULT_OUTPUT_DIR}`, DEFAULT_OUTPUT_DIR)
+  .option('-a, --alias <alias>', 'name of the directory in which the versions of the file will be saved')
+  .action(runTool)
 
 program.parse()
