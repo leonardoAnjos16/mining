@@ -1,12 +1,13 @@
 import path from 'path'
 import { COMMITS_ACTION } from "./commits.js"
-import { getActionOutputPath, Repo } from "../index.js"
+import { getActionOutputPath } from "../index.js"
 import { createCSV, parseCSV } from '../../utils/csv.js'
 import { shuffle } from '../../utils/random.js'
 import { getBaseCommit, getModifiedFiles, getParentCommits } from '../../utils/git.js'
 import { dirExists, fileExists } from '../../utils/file.js'
 import { getRepoPath } from './clone.js'
 import { DatasetOptions } from '../index.js'
+import { Repo } from '../../index.js'
 
 type FileContext = {
   baseCommit: string

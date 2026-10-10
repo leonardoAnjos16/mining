@@ -3,6 +3,11 @@ import { getAvailableActions, runAction } from "./dataset/index.js"
 import { runTool } from "./merge/index.js"
 import { getAvailableTools } from "./utils/tools/index.js"
 
+export type Repo = {
+  name: string
+  path: string
+}
+
 const DEFAULT_OUTPUT_DIR = 'output'
 const DEFAULT_MAX_COMMITS = Number.MAX_SAFE_INTEGER
 

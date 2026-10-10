@@ -4,6 +4,7 @@ import { createDir, removeDir } from '../utils/file.js'
 import { CLONE_ACTION } from './actions/clone.js'
 import { COMMITS_ACTION } from './actions/commits.js'
 import { FILES_ACTION } from './actions/files.js'
+import { Repo } from '../index.js'
 
 export type DatasetOptions = {
   output: string
@@ -12,11 +13,6 @@ export type DatasetOptions = {
   randomSeed: number
   maxCommits: number
   extensions: string[]
-}
-
-export type Repo = {
-  name: string
-  path: string
 }
 
 type Action = {
