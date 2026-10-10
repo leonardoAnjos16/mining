@@ -31,7 +31,7 @@ const actions: Action[] = [
   FILES_ACTION
 ]
 
-export const getActionOutputPath = (action: string, options: DatasetOptions) => path.resolve(options.output, action)
+export const getActionOutputPath = (action: string, options: DatasetOptions) => path.resolve(options.output, 'dataset', action)
 
 export const runAction = (action: string, inputFile: string, options: DatasetOptions) => {
   const actionIndex = actions.findIndex(({ name }) => name === action)
