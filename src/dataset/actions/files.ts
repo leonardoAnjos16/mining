@@ -24,7 +24,7 @@ const runAction = (inputRepos: Repo[], options: DatasetOptions) => {
     const commitsActionOutputPath = getActionOutputPath(COMMITS_ACTION.name, options)
     const commitsFilePath = path.join(commitsActionOutputPath, `${name}.csv`)
 
-    let commits = parseCSV(commitsFilePath).map(({ commit }) => commit)
+    let commits = parseCSV<{ commit: string }>(commitsFilePath).map(({ commit }) => commit)
     if (options.randomSeed !== undefined) {
       commits = shuffle(commits, options.randomSeed)
     }

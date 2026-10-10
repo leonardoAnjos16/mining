@@ -16,14 +16,14 @@ type MergeContext = {
   filepath: string
 }
 
-type ToolResult = MergeContext & {
+export type ToolResult = MergeContext & {
   tool: string
   conflicts: number
   fail: boolean
-  timeMeasurements: string
+  timeMeasurements: number[]
 }
 
-type ComparisonResult = MergeContext & {
+export type ComparisonResult = MergeContext & {
   tool: string
   otherTool: string
   sameContent: boolean
@@ -90,7 +90,7 @@ const computeResults = (
       tool,
       conflicts,
       fail,
-      timeMeasurements: JSON.stringify(timeMeasurements[tool])
+      timeMeasurements: timeMeasurements[tool]
     })
 
     tools.forEach(otherTool => {
@@ -155,7 +155,7 @@ export const runExperiment = (inputFile: string, projectsPath: string, filesPath
   {
     const toolResultsPath = path.join(outputDir, 'tools.csv')
     const headers = ['project', 'mergeCommit', 'filepath', 'tool', 'conflicts', 'fail', 'timeMeasurements'] as const
-    createCSV(toolResultsPath, headers, toolResults)
+    createCSV(toolResultsPath, headers, toolResults, { timeMeasurements: (value: number[]) => JSON.stringify(value) })
   }
 
   {

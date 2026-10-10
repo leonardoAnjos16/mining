@@ -3,6 +3,7 @@ import { getAvailableActions, runAction } from "./dataset/index.js"
 import { runMerge } from "./merge.js"
 import { getAvailableTools } from "./utils/tools/index.js"
 import { runExperiment } from "./experiment.js"
+import { computeMetrics } from "./analysis/index.js"
 
 export type Repo = {
   name: string
@@ -32,7 +33,7 @@ program
   .description('Mine GitHub repositories and build dataset')
   .argument('<action>', `action to run. Must be one of: ${JSON.stringify(getAvailableActions())}`)
   .argument('<input-file>', 'path to the input CSV file')
-  .option('-o, --output <path>', `path to the output directory. Defaults to: ${DEFAULT_OUTPUT_DIR}`, DEFAULT_OUTPUT_DIR)
+  .option('-o, --output <path>', 'path to the output directory', DEFAULT_OUTPUT_DIR)
   .option('-s, --since <date>', 'process merge commits starting from this date')
   .option('-u, --until <date>', 'process merge commits up to this date')
   .option('-r, --random-seed <seed>', 'random seed for shuffling merge commits deterministically', Number)
@@ -61,7 +62,7 @@ program
   .argument('<project-path>', 'path to the project in which the merge tool will run')
   .argument('<merge-commit>', 'hash of the merge commit in which the merge tool will run')
   .argument('<filepath>', 'path to the file in which the merge tool will run')
-  .option('-o, --output <path>', `path to the ouput directory. Defaults to: ${DEFAULT_OUTPUT_DIR}`, DEFAULT_OUTPUT_DIR)
+  .option('-o, --output <path>', 'path to the ouput directory', DEFAULT_OUTPUT_DIR)
   .option('-a, --alias <alias>', 'name of the directory in which the versions of the file will be saved')
   .action(runMerge)
 
@@ -76,7 +77,7 @@ program
     `comma-separated list of merge tools to run. Available tools are: ${JSON.stringify(getAvailableTools())}`,
     tools => tools.split(',')
   )
-  .option('-o, --output <path>', `path to the output directory. Defaults to: ${DEFAULT_OUTPUT_DIR}`, DEFAULT_OUTPUT_DIR)
+  .option('-o, --output <path>', 'path to the output directory', DEFAULT_OUTPUT_DIR)
   .option('-a, --alias <alias>', 'name of the directory in which the results will be saved')
   .option(
     '-r, --repeat <times>',
@@ -85,5 +86,12 @@ program
     DEFAULT_REPEAT
   )
   .action(runExperiment)
+
+program
+  .command('analysis')
+  .description('Analyse merge experiment and produce results metrics')
+  .argument('<results-path>', 'path to the CSV files containing the results of the merge experiment')
+  .option('-o, --output <path>', 'path to the output directory', DEFAULT_OUTPUT_DIR)
+  .action(computeMetrics)
 
 program.parse()
