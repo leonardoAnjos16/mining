@@ -52,9 +52,9 @@ const runAction = (inputRepos: Repo[], options: DatasetOptions) => {
       if (!baseCommit) continue
 
       const leftModifiedFiles = getModifiedFiles(repoPath, leftCommit, baseCommit)
-      const rightModifiedFiles = getModifiedFiles(repoPath, rightCommit, baseCommit)
+      const rightModifiedFiles = new Set(getModifiedFiles(repoPath, rightCommit, baseCommit))
 
-      const commonModifiedFiles = [...new Set([...leftModifiedFiles, ...rightModifiedFiles])]
+      const commonModifiedFiles = leftModifiedFiles.filter(file => rightModifiedFiles.has(file))
       const relevantFiles = commonModifiedFiles.filter(filepath => isRelevantFile(filepath, options))
 
       if (relevantFiles.length > 0) {
