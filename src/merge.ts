@@ -2,6 +2,7 @@ import path from 'path'
 import { getBaseCommit, getFileFromCommit, getParentCommits } from "./utils/git.js"
 import { getTool } from "./utils/tools/index.js"
 import { getExtension, writeFile } from './utils/file.js'
+import { performance } from 'perf_hooks'
 
 type MergeOptions = {
   output: string
@@ -28,12 +29,18 @@ export const runTools = (
   leftCommit: string,
   rightCommit: string,
   filepath: string,
-  outputDir: string
+  outputDir: string,
+  repeat: number = 1
 ) => {
   const baseFile = createFileRevision(projectPath, baseCommit, filepath, outputDir, 'base')
   const leftFile = createFileRevision(projectPath, leftCommit, filepath, outputDir, 'left')
   const rightFile = createFileRevision(projectPath, rightCommit, filepath, outputDir, 'right')
-  
+
+  const timeMeasurements: Record<string, number[]> = toolNames.reduce(
+    (measurements, tool) => ({ ...measurements, [tool]: [] }),
+    {}
+  )
+
   toolNames.forEach(toolName => {
     const tool = getTool(toolName)
     if (!tool) {
@@ -44,8 +51,16 @@ export const runTools = (
     const { name, runTool } = tool
   
     const mergeFile = path.join(outputDir, `${name}.${getExtension(filepath)}`)
-    runTool(leftFile, baseFile, rightFile, mergeFile)
+    for (let i = 0; i < repeat; i++) {
+      const start = performance.now()
+      runTool(leftFile, baseFile, rightFile, mergeFile)
+      const duration = performance.now() - start
+
+      timeMeasurements[toolName].push(duration)
+    }
   })
+
+  return timeMeasurements
 }
 
 export const runMerge = (toolNames: string[], projectPath: string, mergeCommit: string, filepath: string, options: MergeOptions) => {

@@ -19,6 +19,7 @@ export type MergeScenarioFile = {
 
 const DEFAULT_OUTPUT_DIR = 'output'
 const DEFAULT_MAX_COMMITS = Number.MAX_SAFE_INTEGER
+const DEFAULT_REPEAT = 1
 
 const program = new Command()
 
@@ -77,6 +78,12 @@ program
   )
   .option('-o, --output <path>', `path to the output directory. Defaults to: ${DEFAULT_OUTPUT_DIR}`, DEFAULT_OUTPUT_DIR)
   .option('-a, --alias <alias>', 'name of the directory in which the results will be saved')
+  .option(
+    '-r, --repeat <times>',
+    'number of times each tool should run for timing purposes',
+    Number,
+    DEFAULT_REPEAT
+  )
   .action(runExperiment)
 
 program.parse()

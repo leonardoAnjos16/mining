@@ -2,12 +2,12 @@ import path from "path"
 import { MergeScenarioFile, Repo } from "./index.js"
 import { createCSV, parseCSV } from "./utils/csv.js"
 import { dirExists, fileExists, getExtension, readFile, removeDir } from "./utils/file.js"
-import { getTool, MergeTool } from "./utils/tools/index.js"
 import { createFileRevision, runTools } from "./merge.js"
 
 type ExperimentOptions = {
   output: string
   alias?: string
+  repeat?: number
 }
 
 type MergeContext = {
@@ -20,6 +20,7 @@ type ToolResult = MergeContext & {
   tool: string
   conflicts: number
   fail: boolean
+  timeMeasurements: string
 }
 
 type ComparisonResult = MergeContext & {
@@ -69,7 +70,13 @@ const computeComparisonResults = (toolOutput: string, otherToolOutput: string) =
   }
 }
 
-const computeResults = (mergeContext: MergeContext, tools: string[], outputDir: string, mergeFile: string) => {
+const computeResults = (
+  mergeContext: MergeContext,
+  tools: string[],
+  timeMeasurements: Record<string, number[]>,
+  outputDir: string,
+  mergeFile: string
+) => {
   const toolResults: ToolResult[] = []
   const comparisonResults: ComparisonResult[] = []
 
@@ -77,7 +84,14 @@ const computeResults = (mergeContext: MergeContext, tools: string[], outputDir: 
   tools.forEach(tool => {
     const toolOutput = getToolOutput(outputDir, extension, tool)
     const { conflicts, fail } = computeToolResults(toolOutput)
-    toolResults.push({ ...mergeContext, tool, conflicts, fail })
+
+    toolResults.push({
+      ...mergeContext,
+      tool,
+      conflicts,
+      fail,
+      timeMeasurements: JSON.stringify(timeMeasurements[tool])
+    })
 
     tools.forEach(otherTool => {
       if (otherTool !== tool) {
@@ -119,11 +133,12 @@ export const runExperiment = (inputFile: string, projectsPath: string, filesPath
     const tempOutputDir = path.join(outputDir, 'tmp')
     files.forEach(({ baseCommit, leftCommit, rightCommit, mergeCommit, filepath }) => {
       const mergeFile = createFileRevision(projectPath, mergeCommit, filepath, tempOutputDir, 'merge')
-      runTools(tools, projectPath, baseCommit, leftCommit, rightCommit, filepath, tempOutputDir)
+      const timeMeasurements = runTools(tools, projectPath, baseCommit, leftCommit, rightCommit, filepath, tempOutputDir, options.repeat)
 
       const results = computeResults(
         { project, mergeCommit, filepath },
         tools,
+        timeMeasurements,
         tempOutputDir,
         mergeFile
       )
@@ -139,7 +154,7 @@ export const runExperiment = (inputFile: string, projectsPath: string, filesPath
 
   {
     const toolResultsPath = path.join(outputDir, 'tools.csv')
-    const headers = ['project', 'mergeCommit', 'filepath', 'tool', 'conflicts', 'fail'] as const
+    const headers = ['project', 'mergeCommit', 'filepath', 'tool', 'conflicts', 'fail', 'timeMeasurements'] as const
     createCSV(toolResultsPath, headers, toolResults)
   }
 
