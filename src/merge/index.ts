@@ -21,12 +21,7 @@ const writeFileRevision = (projectPath: string, commit: string, filepath: string
   return outputPath
 }
 
-export const runTool = (toolName: string, projectPath: string, mergeCommit: string, filepath: string, options: MergeOptions) => {
-  const tool = getTool(toolName)
-  if (!tool) {
-    throw new Error('Invalid tool')
-  }
-
+export const runTool = (toolNames: string[], projectPath: string, mergeCommit: string, filepath: string, options: MergeOptions) => {
   const parentCommits = getParentCommits(projectPath, mergeCommit)
   if (!parentCommits || parentCommits.length !== 2) {
     throw new Error('Could not retrieve left and right commits')
@@ -43,9 +38,16 @@ export const runTool = (toolName: string, projectPath: string, mergeCommit: stri
   const baseFile = writeFileRevision(projectPath, baseCommit, filepath, outputDir, 'base')
   const leftFile = writeFileRevision(projectPath, leftCommit, filepath, outputDir, 'left')
   const rightFile = writeFileRevision(projectPath, rightCommit, filepath, outputDir, 'right')
-  
-  const { name, runTool } = tool
 
-  const mergeFile = path.join(outputDir, `${name}.${getExtension(filepath)}`)
-  runTool(leftFile, baseFile, rightFile, mergeFile)
+  toolNames.forEach(toolName => {
+    const tool = getTool(toolName)
+    if (!tool) {
+      throw new Error(`Invalid tool: ${toolName}`)
+    }
+
+    const { name, runTool } = tool
+
+    const mergeFile = path.join(outputDir, `${name}.${getExtension(filepath)}`)
+    runTool(leftFile, baseFile, rightFile, mergeFile)
+  })
 }

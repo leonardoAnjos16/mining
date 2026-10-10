@@ -38,7 +38,11 @@ program
 program
   .command('merge')
   .description('Run merge tool for the versions of one file in a merge commit')
-  .argument(`<tool>', 'merge tool to run. Must be one of: ${JSON.stringify(getAvailableTools())}`)
+  .argument(
+    '<tools>',
+    `comma-separated list of merge tools to run. Availables tools are: ${JSON.stringify(getAvailableTools())}`,
+    tools => tools.split(',')
+  )
   .argument('<project-path>', 'path to the project in which the merge tool will run')
   .argument('<merge-commit>', 'hash of the merge commit in which the merge tool will run')
   .argument('<filepath>', 'path to the file in which the merge tool will run')
