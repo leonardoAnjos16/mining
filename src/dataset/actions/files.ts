@@ -6,7 +6,7 @@ import { shuffle } from '../../utils/random.js'
 import { getBaseCommit, getModifiedFiles, getParentCommits } from '../../utils/git.js'
 import { dirExists, fileExists } from '../../utils/file.js'
 import { getRepoPath } from './clone.js'
-import { DatasetOptions } from '../../index.js'
+import { DatasetOptions } from '../index.js'
 
 type FileContext = {
   baseCommit: string

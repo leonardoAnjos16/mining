@@ -2,7 +2,7 @@ import path from 'path'
 import { dirExists } from '../../utils/file.js'
 import { runCommand } from '../../utils/process.js'
 import { getActionOutputPath, Repo } from '../index.js'
-import { DatasetOptions } from '../../index.js'
+import { DatasetOptions } from '../index.js'
 
 const name = 'clone'
 

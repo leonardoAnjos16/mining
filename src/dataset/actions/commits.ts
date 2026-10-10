@@ -4,7 +4,7 @@ import { createCSV } from '../../utils/csv.js'
 import { dirExists, fileExists } from '../../utils/file.js'
 import { getMergeCommits } from '../../utils/git.js'
 import { getRepoPath } from './clone.js'
-import { DatasetOptions } from '../../index.js'
+import { DatasetOptions } from '../index.js'
 
 const name = 'commits'
 

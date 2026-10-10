@@ -4,7 +4,15 @@ import { createDir, removeDir } from '../utils/file.js'
 import { CLONE_ACTION } from './actions/clone.js'
 import { COMMITS_ACTION } from './actions/commits.js'
 import { FILES_ACTION } from './actions/files.js'
-import { DatasetOptions } from '../index.js'
+
+export type DatasetOptions = {
+  output: string
+  since: string
+  until: string
+  randomSeed: number
+  maxCommits: number
+  extensions: string[]
+}
 
 export type Repo = {
   name: string
@@ -23,7 +31,7 @@ const actions: Action[] = [
   FILES_ACTION
 ]
 
-export const getActionOutputPath = (action: string, options: DatasetOptions) => path.join(process.cwd(), options.output, action)
+export const getActionOutputPath = (action: string, options: DatasetOptions) => path.resolve(options.output, action)
 
 export const runAction = (action: string, inputFile: string, options: DatasetOptions) => {
   const actionIndex = actions.findIndex(({ name }) => name === action)
