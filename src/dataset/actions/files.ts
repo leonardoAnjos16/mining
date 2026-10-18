@@ -18,9 +18,9 @@ const isRelevantFile = (filepath: string, options: DatasetOptions) => {
   return true
 }
 
-const runAction = (inputRepos: Repo[], options: DatasetOptions) => {
+const runAction = (repos: Repo[], options: DatasetOptions) => {
   const outputPath = getActionOutputPath(name, options)
-  inputRepos.forEach(({ name }) => {
+  repos.forEach(({ name }) => {
     const commitsActionOutputPath = getActionOutputPath(COMMITS_ACTION.name, options)
     const commitsFilePath = path.join(commitsActionOutputPath, `${name}.csv`)
 
@@ -72,11 +72,11 @@ const runAction = (inputRepos: Repo[], options: DatasetOptions) => {
   })
 }
 
-const isDone = (inputRepos: Repo[], options: DatasetOptions) => {
+const isDone = (repos: Repo[], options: DatasetOptions) => {
   const outputPath = getActionOutputPath(name, options)
   if (!dirExists(outputPath)) return false
 
-  return !inputRepos.some(({ name }) => !fileExists(path.join(outputPath, `${name}.csv`)))
+  return !repos.some(({ name }) => !fileExists(path.join(outputPath, `${name}.csv`)))
 }
 
 export const FILES_ACTION = {

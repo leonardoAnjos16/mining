@@ -19,6 +19,7 @@ export type MergeScenarioFile = {
 }
 
 const DEFAULT_OUTPUT_DIR = 'output'
+const DEFAULT_MAX_REPOS = 20
 const DEFAULT_MAX_COMMITS = Number.MAX_SAFE_INTEGER
 const DEFAULT_REPEAT = 1
 
@@ -32,16 +33,27 @@ program
   .command('dataset')
   .description('Mine GitHub repositories and build dataset')
   .argument('<action>', `action to run. Must be one of: ${JSON.stringify(getAvailableActions())}`)
-  .argument('<input-file>', 'path to the input CSV file')
   .option('-o, --output <path>', 'path to the output directory', DEFAULT_OUTPUT_DIR)
   .option('-s, --since <date>', 'process merge commits starting from this date')
   .option('-u, --until <date>', 'process merge commits up to this date')
   .option('-r, --random-seed <seed>', 'random seed for shuffling merge commits deterministically', Number)
   .option(
-    '-m, --max-commits <commits>',
+    '-t, --max-repos <repos>',
+    'maximum number of processed repos per language',
+    Number,
+    DEFAULT_MAX_REPOS
+  )
+  .option(
+    '-c, --max-commits <commits>',
     'maximum number of processed merge commits',
     Number,
     DEFAULT_MAX_COMMITS
+  )
+  .option(
+    '-l, --languages <languages>',
+    'comma-separated list of programming languages to consider',
+    languages => languages.split(','),
+    []
   )
   .option(
     '-e, --extensions <extensions>',

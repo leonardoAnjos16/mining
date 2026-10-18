@@ -9,9 +9,9 @@ import { Repo } from '../../index.js'
 
 const name = 'commits'
 
-const runAction = (inputRepos: Repo[], options: DatasetOptions) => {
+const runAction = (repos: Repo[], options: DatasetOptions) => {
   const outputPath = getActionOutputPath(name, options)
-  inputRepos.forEach(({ name }) => {
+  repos.forEach(({ name }) => {
     const repoPath = getRepoPath(name, options)
     const mergeCommits = getMergeCommits(repoPath, options.since, options.until)?.map(commit => ({ commit })) ?? []
 
@@ -22,11 +22,11 @@ const runAction = (inputRepos: Repo[], options: DatasetOptions) => {
   })
 }
 
-const isDone = (inputRepos: Repo[], options: DatasetOptions) => {
+const isDone = (repos: Repo[], options: DatasetOptions) => {
   const outputPath = getActionOutputPath(name, options)
   if (!dirExists(outputPath)) return false
 
-  return !inputRepos.some(({ name }) => !fileExists(path.join(outputPath, `${name}.csv`)))
+  return !repos.some(({ name }) => !fileExists(path.join(outputPath, `${name}.csv`)))
 }
 
 export const COMMITS_ACTION = {

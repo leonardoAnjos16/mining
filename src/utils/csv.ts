@@ -7,7 +7,7 @@ export const parseCSV = <T extends Record<string, Value>>(
   transformers: {
     [K in keyof T]?: (value: string) => T[K]
   } = {},
-  separator: string = ','
+  separator: string = ';'
 ): T[] => {
   const csvContent = readFile(csvFilepath)
 

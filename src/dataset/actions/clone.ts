@@ -7,18 +7,18 @@ import { Repo } from '../../index.js'
 
 const name = 'clone'
 
-const runAction = (inputRepos: Repo[], options: DatasetOptions) => {
+const runAction = (repos: Repo[], options: DatasetOptions) => {
   const outputPath = getActionOutputPath(name, options)
-  inputRepos.forEach(({ name, path }) => {
+  repos.forEach(({ name, path }) => {
     runCommand('git', ['clone', path, name], { cwd: outputPath, showOutput: true })
   })
 }
 
-const isDone = (inputRepos: Repo[], options: DatasetOptions) => {
+const isDone = (repos: Repo[], options: DatasetOptions) => {
   const outputPath = getActionOutputPath(name, options)
   if (!dirExists(outputPath)) return false
 
-  return !inputRepos.some(({ name }) => !dirExists(path.join(outputPath, name)))
+  return !repos.some(({ name }) => !dirExists(path.join(outputPath, name)))
 }
 
 export const getRepoPath = (repoName: string, options: DatasetOptions) => {
