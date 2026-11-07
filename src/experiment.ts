@@ -3,6 +3,8 @@ import { MergeScenarioFile, Repo } from "./index.js"
 import { appendCSV, createCSV, parseCSV } from "./utils/csv.js"
 import { dirExists, fileExists, getExtension, readFile, removeDir } from "./utils/file.js"
 import { createFileRevision, runTools } from "./merge.js"
+import { formatDuration } from "./utils/log.js"
+import { performance } from "perf_hooks"
 
 type ExperimentOptions = {
   output: string
@@ -132,15 +134,42 @@ export const runExperiment = (inputFile: string, projectsPath: string, filesPath
   const comparisonResultsPath = path.join(outputDir, 'comparisons.csv')
   createCSV<ComparisonResult>(comparisonResultsPath, COMPARISON_RESULTS_HEADERS, [])
 
-  inputRepos.forEach(({ name: project }) => {
+  // Loading every project's scenarios up front gives the total for progress reporting
+  const projects = inputRepos.map(({ name: project }) => ({
+    project,
+    files: parseCSV<MergeScenarioFile>(path.join(filesPath, `${project}.csv`))
+  }))
+
+  const totalScenarios = projects.reduce((total, { files }) => total + files.length, 0)
+  const start = performance.now()
+  let completedScenarios = 0
+
+  const logProgress = (projectIndex: number, project: string, fileIndex: number, filesCount: number, filepath: string) => {
+    const elapsed = performance.now() - start
+    const remaining = totalScenarios - completedScenarios
+    const eta = completedScenarios > 0 ? `~${formatDuration((elapsed / completedScenarios) * remaining)}` : '?'
+
+    const current = completedScenarios + 1
+    const counter = `${current.toString().padStart(totalScenarios.toString().length)}/${totalScenarios}`
+    const percentage = `${((completedScenarios / totalScenarios) * 100).toFixed(1)}%`
+
+    console.log(
+      `[${counter} ${percentage}] ${project} (project ${projectIndex + 1}/${projects.length}, file ${fileIndex + 1}/${filesCount}) ` +
+      `${filepath} · elapsed ${formatDuration(elapsed)} · ETA ${eta}`
+    )
+  }
+
+  console.log(`Running ${totalScenarios} scenarios from ${projects.length} projects`)
+
+  projects.forEach(({ project, files }, projectIndex) => {
     console.log(`Starting project ${project}`)
 
     const projectPath = path.join(projectsPath, project)
-    const revisionsPath = path.join(filesPath, `${project}.csv`)
-    const files = parseCSV<MergeScenarioFile>(revisionsPath)
 
     const tempOutputDir = path.join(outputDir, 'tmp')
-    files.forEach(({ baseCommit, leftCommit, rightCommit, mergeCommit, filepath }) => {
+    files.forEach(({ baseCommit, leftCommit, rightCommit, mergeCommit, filepath }, fileIndex) => {
+      logProgress(projectIndex, project, fileIndex, files.length, filepath)
+
       const mergeFile = createFileRevision(projectPath, mergeCommit, filepath, tempOutputDir, 'merge')
       const timeMeasurements = runTools(tools, projectPath, baseCommit, leftCommit, rightCommit, filepath, tempOutputDir, options.repeat)
 
@@ -156,8 +185,11 @@ export const runExperiment = (inputFile: string, projectsPath: string, filesPath
       appendCSV(comparisonResultsPath, COMPARISON_RESULTS_HEADERS, results.comparisonResults)
 
       removeDir(tempOutputDir)
+      completedScenarios++
     })
 
     console.log(`Finished project ${project}`)
   })
+
+  console.log(`Finished ${totalScenarios} scenarios in ${formatDuration(performance.now() - start)}`)
 }
