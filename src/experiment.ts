@@ -24,6 +24,7 @@ export type ToolResult = MergeContext & {
   tool: string
   conflicts: number
   fail: boolean
+  timeout: boolean // the tool was killed after TOOL_TIMEOUT_MS; also counts as fail
   timeMeasurements: number[]
 }
 
@@ -34,7 +35,7 @@ export type ComparisonResult = MergeContext & {
   sameNormalizedContent: boolean
 }
 
-const TOOL_RESULTS_HEADERS = ['project', 'mergeCommit', 'filepath', 'sameSides', 'tool', 'conflicts', 'fail', 'timeMeasurements'] as const
+const TOOL_RESULTS_HEADERS = ['project', 'mergeCommit', 'filepath', 'sameSides', 'tool', 'conflicts', 'fail', 'timeout', 'timeMeasurements'] as const
 const TOOL_RESULTS_TRANSFORMERS = { timeMeasurements: (value: number[]) => JSON.stringify(value) }
 
 const COMPARISON_RESULTS_HEADERS = ['project', 'mergeCommit', 'filepath', 'tool', 'otherTool', 'sameContent', 'sameNormalizedContent'] as const
@@ -111,10 +112,12 @@ const getToolOutput = (outputDir: string, extension: string, tool: string) => {
   return fileExists(mergeFile) ? readFile(mergeFile) : undefined
 }
 
-const computeToolResults = (toolOutput: string | undefined) => {
+const computeToolResults = (toolOutput: string | undefined, timeout: boolean) => {
   return {
-    conflicts: (toolOutput?.match(/<<<<<<</g) ?? []).length,
-    fail: toolOutput === undefined
+    // Only markers at the start of a line, so marker-like strings inside code aren't counted
+    conflicts: (toolOutput?.match(/^<<<<<<<( |$)/gm) ?? []).length,
+    fail: toolOutput === undefined || timeout,
+    timeout
   }
 }
 
@@ -129,6 +132,7 @@ const computeResults = (
   mergeContext: MergeContext,
   tools: string[],
   timeMeasurements: Record<string, number[]>,
+  timeouts: Record<string, boolean>,
   outputDir: string,
   mergeFile: string
 ) => {
@@ -142,7 +146,7 @@ const computeResults = (
 
   tools.forEach(tool => {
     const toolOutput = getToolOutput(outputDir, extension, tool)
-    const { conflicts, fail } = computeToolResults(toolOutput)
+    const { conflicts, fail, timeout } = computeToolResults(toolOutput, timeouts[tool] ?? false)
 
     toolResults.push({
       ...mergeContext,
@@ -150,6 +154,7 @@ const computeResults = (
       tool,
       conflicts,
       fail,
+      timeout,
       timeMeasurements: timeMeasurements[tool]
     })
 
@@ -247,12 +252,13 @@ export const runExperiment = (inputFile: string, projectsPath: string, filesPath
       logProgress(projectIndex, project, fileIndex, files.length, filepath)
 
       const mergeFile = createFileRevision(projectPath, mergeCommit, filepath, tempOutputDir, 'merge')
-      const timeMeasurements = runTools(tools, projectPath, baseCommit, leftCommit, rightCommit, filepath, tempOutputDir, options.repeat)
+      const { timeMeasurements, timeouts } = runTools(tools, projectPath, baseCommit, leftCommit, rightCommit, filepath, tempOutputDir, options.repeat)
 
       const results = computeResults(
         { project, mergeCommit, filepath },
         tools,
         timeMeasurements,
+        timeouts,
         tempOutputDir,
         mergeFile
       )

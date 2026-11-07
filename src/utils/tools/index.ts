@@ -14,6 +14,8 @@ export const DEFAULT_LEFT_MARKER_LABEL = 'MINE'
 export const DEFAULT_BASE_MARKER_LABEL = 'BASE'
 export const DEFAULT_RIGHT_MARKER_LABEL = 'YOURS'
 
+export const TOOL_TIMEOUT_MS = 120_000
+
 export const getTool = (tool: string) => tools.find(({ name }) => name === tool)
 
 export const getToolPath = (tool: string) => path.resolve('tools', tool)

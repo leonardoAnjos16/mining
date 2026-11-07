@@ -90,6 +90,7 @@ export const computeMetrics = (resultsPath: string, options: AnalysisOptions) =>
       conflicts: Number,
       sameSides: (value: string) => value === 'true',
       fail: (value: string) => value === 'true',
+      timeout: (value: string) => value === 'true',
       timeMeasurements: (value: string) => JSON.parse(value)
     },
     ';'

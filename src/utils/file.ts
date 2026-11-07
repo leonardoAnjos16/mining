@@ -12,6 +12,8 @@ export const fileExists = (path: string) => fs.existsSync(path) && fs.statSync(p
 
 export const removeDir = (path: string) => fs.rmSync(path, { recursive: true, force: true })
 
+export const removeFile = (path: string) => fs.rmSync(path, { force: true })
+
 export const createDir = (path: string) => fs.mkdirSync(path, { recursive: true })
 
 export const readFile = (filepath: string) => fs.readFileSync(filepath, 'utf-8')

@@ -1,9 +1,10 @@
 import path from 'path'
 import { getBaseCommit, getFileFromCommit, getParentCommits } from "./utils/git.js"
 import { getTool } from "./utils/tools/index.js"
-import { getExtension, writeFile } from './utils/file.js'
+import { getExtension, removeFile, writeFile } from './utils/file.js'
 import { performance } from 'perf_hooks'
 import { formatError } from './utils/log.js'
+import { TimeoutError } from './utils/process.js'
 
 type MergeOptions = {
   output: string
@@ -37,6 +38,7 @@ export const runTools = (
   const leftFile = createFileRevision(projectPath, leftCommit, filepath, outputDir, 'left')
   const rightFile = createFileRevision(projectPath, rightCommit, filepath, outputDir, 'right')
 
+  const timeouts: Record<string, boolean> = {}
   const timeMeasurements: Record<string, number[]> = toolNames.reduce(
     (measurements, tool) => ({ ...measurements, [tool]: [] }),
     {}
@@ -53,10 +55,14 @@ export const runTools = (
   
     const mergeFile = path.join(outputDir, `${name}.${getExtension(filepath)}`)
     for (let i = 0; i < repeat; i++) {
+      removeFile(mergeFile)
+
       const start = performance.now()
       try {
         runTool(leftFile, baseFile, rightFile, mergeFile)
       } catch (error) {
+        if (error instanceof TimeoutError) timeouts[toolName] = true
+
         console.error(formatError(`${toolName} failed for ${filepath}`, {
           base: baseCommit,
           left: leftCommit,
@@ -66,12 +72,16 @@ export const runTools = (
       }
 
       const duration = performance.now() - start
-
       timeMeasurements[toolName].push(duration)
+
+      if (timeouts[toolName]) {
+        removeFile(mergeFile)
+        break
+      }
     }
   })
 
-  return timeMeasurements
+  return { timeMeasurements, timeouts }
 }
 
 export const runMerge = (toolNames: string[], projectPath: string, mergeCommit: string, filepath: string, options: MergeOptions) => {

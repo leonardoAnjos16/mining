@@ -1,5 +1,5 @@
 import { runCommand } from "../process.js"
-import { getToolPath } from "./index.js"
+import { getToolPath, TOOL_TIMEOUT_MS } from "./index.js"
 
 type Options = {
   extensive?: boolean
@@ -33,7 +33,7 @@ export const buildSepMergeCPPRunner = ({ extensive, granularityThreshold }: Opti
       parameters.push('-g', granularityThreshold.toString())
     }
 
-    runCommand(`${toolPath}`, parameters)
+    runCommand(`${toolPath}`, parameters, { timeout: TOOL_TIMEOUT_MS })
   }
 
   return { name, runTool }

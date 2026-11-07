@@ -1,6 +1,6 @@
 import { writeFile } from "../file.js"
 import { runCommand } from "../process.js"
-import { DEFAULT_BASE_MARKER_LABEL, DEFAULT_LEFT_MARKER_LABEL, DEFAULT_RIGHT_MARKER_LABEL, getToolPath } from "./index.js"
+import { DEFAULT_BASE_MARKER_LABEL, DEFAULT_LEFT_MARKER_LABEL, DEFAULT_RIGHT_MARKER_LABEL, TOOL_TIMEOUT_MS } from "./index.js"
 
 export const buildDiff3Runner = () => {
   const name = 'diff3'
@@ -17,6 +17,7 @@ export const buildDiff3Runner = () => {
     ]
 
     const output = runCommand('diff3', parameters, {
+      timeout: TOOL_TIMEOUT_MS,
       isSuccess: code => code === 0 || code === 1 // 1 = conflicts
     })
 

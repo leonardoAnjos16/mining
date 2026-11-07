@@ -1,5 +1,5 @@
 import { runCommand } from "../process.js"
-import { getToolPath } from "./index.js"
+import { getToolPath, TOOL_TIMEOUT_MS } from "./index.js"
 
 export const buildLastMergeRunner = () => {
   const name = 'last-merge'
@@ -15,6 +15,7 @@ export const buildLastMergeRunner = () => {
     ]
 
     runCommand(toolPath, parameters, {
+      timeout: TOOL_TIMEOUT_MS,
       isSuccess: code => code === 0 || code === 1 // 1 = conflicts
     })
   }

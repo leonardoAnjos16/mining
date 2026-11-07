@@ -1,5 +1,5 @@
 import { runCommand } from "../process.js"
-import { DEFAULT_BASE_MARKER_LABEL, DEFAULT_LEFT_MARKER_LABEL, DEFAULT_RIGHT_MARKER_LABEL, getToolPath } from "./index.js"
+import { DEFAULT_BASE_MARKER_LABEL, DEFAULT_LEFT_MARKER_LABEL, DEFAULT_RIGHT_MARKER_LABEL, getToolPath, TOOL_TIMEOUT_MS } from "./index.js"
 
 export const buildMergirafRunner = () => {
   const name = 'mergiraf'
@@ -18,6 +18,7 @@ export const buildMergirafRunner = () => {
     ]
 
     runCommand(toolPath, parameters, {
+      timeout: TOOL_TIMEOUT_MS,
       isSuccess: code => code === 0 || code === 1 // 1 = conflicts
     })
   }
