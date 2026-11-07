@@ -4,6 +4,7 @@ import { createDir, removeDir } from '../utils/file.js'
 import { CLONE_ACTION } from './actions/clone.js'
 import { COMMITS_ACTION } from './actions/commits.js'
 import { FILES_ACTION } from './actions/files.js'
+import { FILTER_ACTION } from './actions/filter.js'
 import { Repo } from '../index.js'
 import { getFetchOutputFile, isFetchDone, runFetchAction } from './actions/fetch.js'
 
@@ -26,13 +27,15 @@ type Action = {
 const actions: Action[] = [
   CLONE_ACTION,
   COMMITS_ACTION,
-  FILES_ACTION
+  FILES_ACTION,
+  FILTER_ACTION
 ]
 
 export const getActionOutputPath = (action: string, options: DatasetOptions) => path.resolve(options.output, 'dataset', action)
 
 export const runAction = async (action: string, options: DatasetOptions) => {
   if (action === 'fetch') {
+    console.log('Running fetch action')
     await runFetchAction(options)
     return
   }
@@ -43,6 +46,7 @@ export const runAction = async (action: string, options: DatasetOptions) => {
   }
 
   if (!isFetchDone(options)) {
+    console.log('Running fetch action')
     await runFetchAction(options)
   }
 
