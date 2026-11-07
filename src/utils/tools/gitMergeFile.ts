@@ -16,7 +16,10 @@ export const buildGitMergeFileRunner = () => {
       rightFile
     ]
 
-    const output = runCommand('git', parameters)
+    const output = runCommand('git', parameters, {
+      isSuccess: code => code <= 127 // exit code = number of conflicts (capped at 127)
+    })
+
     if (output) writeFile(mergeFile, output)
   }
 

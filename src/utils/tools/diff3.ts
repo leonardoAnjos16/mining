@@ -16,7 +16,10 @@ export const buildDiff3Runner = () => {
       rightFile
     ]
 
-    const output = runCommand('diff3', parameters)
+    const output = runCommand('diff3', parameters, {
+      isSuccess: code => code === 0 || code === 1 // 1 = conflicts
+    })
+
     if (output) writeFile(mergeFile, output)
   }
 

@@ -1,25 +1,37 @@
-import { execFileSync, ExecFileSyncOptions } from 'child_process'
+import { spawnSync, SpawnSyncOptions } from 'child_process'
+import { formatError } from './log.js'
 
 type CommandOptions = {
   cwd?: string
   showOutput?: boolean
+  isSuccess?: (exitCode: number) => boolean
 }
 
-export const runCommand = (command: string, parameters: string[], { cwd, showOutput = false }: CommandOptions = {}) => {
-  try {
-    const options: ExecFileSyncOptions = {
-      cwd,
-      encoding: 'utf8',
-      maxBuffer: 100 * 1024 * 1024, // 100 MB
-      stdio: ['ignore', 'pipe', 'pipe']
-    }
+const defaultIsSuccess = (exitCode: number) => exitCode === 0
 
-    if (showOutput) {
-      options.stdio = 'inherit'
-    }
-
-    return execFileSync(command, parameters, options) as string
-  } catch (error) {
-    console.error(`${command} failed: ${error}`)
+export const runCommand = (
+  command: string,
+  parameters: string[],
+  { cwd, showOutput = false, isSuccess = defaultIsSuccess }: CommandOptions = {}
+) => {
+  const options: SpawnSyncOptions = {
+    cwd,
+    encoding: 'utf8',
+    maxBuffer: 100 * 1024 * 1024, // 100 MB
+    stdio: showOutput ? 'inherit' : ['ignore', 'pipe', 'pipe']
   }
+
+  const result = spawnSync(command, parameters, options)
+  if (!result.error && result.status !== null && isSuccess(result.status)) {
+    return result.stdout as string
+  }
+
+  console.error(formatError(`${command} failed`, {
+    args: parameters.join(' '),
+    cwd,
+    error: result.error?.message,
+    exit: result.error ? undefined : result.status ?? undefined,
+    signal: result.signal ?? undefined,
+    stderr: (result.stderr as string | null)?.trim() || undefined
+  }))
 }

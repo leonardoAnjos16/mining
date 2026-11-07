@@ -14,7 +14,9 @@ export const buildLastMergeRunner = () => {
       `--merge-path=${mergeFile}`
     ]
 
-    runCommand(toolPath, parameters)
+    runCommand(toolPath, parameters, {
+      isSuccess: code => code === 0 || code === 1 // 1 = conflicts
+    })
   }
 
   return { name, runTool }

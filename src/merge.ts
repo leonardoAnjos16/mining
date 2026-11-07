@@ -3,6 +3,7 @@ import { getBaseCommit, getFileFromCommit, getParentCommits } from "./utils/git.
 import { getTool } from "./utils/tools/index.js"
 import { getExtension, writeFile } from './utils/file.js'
 import { performance } from 'perf_hooks'
+import { formatError } from './utils/log.js'
 
 type MergeOptions = {
   output: string
@@ -53,7 +54,17 @@ export const runTools = (
     const mergeFile = path.join(outputDir, `${name}.${getExtension(filepath)}`)
     for (let i = 0; i < repeat; i++) {
       const start = performance.now()
-      runTool(leftFile, baseFile, rightFile, mergeFile)
+      try {
+        runTool(leftFile, baseFile, rightFile, mergeFile)
+      } catch (error) {
+        console.error(formatError(`${toolName} failed for ${filepath}`, {
+          base: baseCommit,
+          left: leftCommit,
+          right: rightCommit,
+          error: String(error)
+        }))
+      }
+
       const duration = performance.now() - start
 
       timeMeasurements[toolName].push(duration)
