@@ -1,6 +1,6 @@
 import path from "path"
 import { MergeScenarioFile, Repo } from "./index.js"
-import { createCSV, parseCSV } from "./utils/csv.js"
+import { appendCSV, createCSV, parseCSV } from "./utils/csv.js"
 import { dirExists, fileExists, getExtension, readFile, removeDir } from "./utils/file.js"
 import { createFileRevision, runTools } from "./merge.js"
 
@@ -29,6 +29,11 @@ export type ComparisonResult = MergeContext & {
   sameContent: boolean
   sameNormalizedContent: boolean
 }
+
+const TOOL_RESULTS_HEADERS = ['project', 'mergeCommit', 'filepath', 'tool', 'conflicts', 'fail', 'timeMeasurements'] as const
+const TOOL_RESULTS_TRANSFORMERS = { timeMeasurements: (value: number[]) => JSON.stringify(value) }
+
+const COMPARISON_RESULTS_HEADERS = ['project', 'mergeCommit', 'filepath', 'tool', 'otherTool', 'sameContent', 'sameNormalizedContent'] as const
 
 const validateProjects = (inputFile: string, projectsPath: string, filesPath: string) => {
   const inputRepos = parseCSV<Repo>(inputFile)
@@ -120,8 +125,12 @@ export const runExperiment = (inputFile: string, projectsPath: string, filesPath
   const inputRepos = validateProjects(inputFile, projectsPath, filesPath)
   const outputDir = path.resolve(options.output, 'experiment', options.alias ?? Date.now().toString())
 
-  const toolResults: ToolResult[] = []
-  const comparisonResults: ComparisonResult[] = []
+  // Results are appended after every scenario, so partial results survive an interrupted run
+  const toolResultsPath = path.join(outputDir, 'tools.csv')
+  createCSV<ToolResult>(toolResultsPath, TOOL_RESULTS_HEADERS, [], TOOL_RESULTS_TRANSFORMERS)
+
+  const comparisonResultsPath = path.join(outputDir, 'comparisons.csv')
+  createCSV<ComparisonResult>(comparisonResultsPath, COMPARISON_RESULTS_HEADERS, [])
 
   inputRepos.forEach(({ name: project }) => {
     console.log(`Starting project ${project}`)
@@ -143,24 +152,12 @@ export const runExperiment = (inputFile: string, projectsPath: string, filesPath
         mergeFile
       )
 
-      toolResults.push(...results.toolResults)
-      comparisonResults.push(...results.comparisonResults)
+      appendCSV(toolResultsPath, TOOL_RESULTS_HEADERS, results.toolResults, TOOL_RESULTS_TRANSFORMERS)
+      appendCSV(comparisonResultsPath, COMPARISON_RESULTS_HEADERS, results.comparisonResults)
 
       removeDir(tempOutputDir)
     })
 
     console.log(`Finished project ${project}`)
   })
-
-  {
-    const toolResultsPath = path.join(outputDir, 'tools.csv')
-    const headers = ['project', 'mergeCommit', 'filepath', 'tool', 'conflicts', 'fail', 'timeMeasurements'] as const
-    createCSV(toolResultsPath, headers, toolResults, { timeMeasurements: (value: number[]) => JSON.stringify(value) })
-  }
-
-  {
-    const comparisonResultsPath = path.join(outputDir, 'comparisons.csv')
-    const headers = ['project', 'mergeCommit', 'filepath', 'tool', 'otherTool', 'sameContent', 'sameNormalizedContent'] as const
-    createCSV(comparisonResultsPath, headers, comparisonResults)
-  }
 }

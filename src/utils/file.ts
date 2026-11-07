@@ -20,3 +20,8 @@ export const writeFile = (filepath: string, content: string) => {
   createDir(path.dirname(filepath))
   fs.writeFileSync(filepath, content)
 }
+
+export const appendFile = (filepath: string, content: string) => {
+  createDir(path.dirname(filepath))
+  fs.appendFileSync(filepath, content)
+}
