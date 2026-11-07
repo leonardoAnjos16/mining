@@ -92,6 +92,7 @@ program
     Number,
     DEFAULT_REPEAT
   )
+  .option('--resume', 'continue the run saved under --alias, skipping scenarios that already have results')
   .action(runExperiment)
 
 program
