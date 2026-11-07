@@ -15,7 +15,6 @@ export type DatasetOptions = {
   maxRepos: number
   maxCommits: number
   languages: string[]
-  extensions: string[]
 }
 
 type Action = {

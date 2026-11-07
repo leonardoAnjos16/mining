@@ -8,6 +8,7 @@ import { computeMetrics } from "./analysis/index.js"
 export type Repo = {
   name: string
   path: string
+  language: string
 }
 
 export type MergeScenarioFile = {
@@ -53,12 +54,6 @@ program
     '-l, --languages <languages>',
     'comma-separated list of programming languages to consider',
     languages => languages.split(','),
-    []
-  )
-  .option(
-    '-e, --extensions <extensions>',
-    'comma-separated list of file extensions to be processed',
-    extensions => extensions.split(','),
     []
   )
   .action(runAction)

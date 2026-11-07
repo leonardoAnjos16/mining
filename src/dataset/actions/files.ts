@@ -11,16 +11,25 @@ import { MergeScenarioFile, Repo } from '../../index.js'
 
 const name = 'files'
 
-const isRelevantFile = (filepath: string, options: DatasetOptions) => {
+const languageToExtensions = (language: string) => {
+  if (language === 'javascript') return ['.js', '.jsx', '.mjs']
+  if (language === 'java' || language === 'go') return [`.${language}`]
+  if (language === 'rust') return ['.rs']
+
+  return []
+}
+
+const isRelevantFile = (repo: Repo, filepath: string) => {
   if (filepath.startsWith('vendor/')) return false
-  if (!options.extensions.some(extension => filepath.endsWith(extension))) return false
+  if (!languageToExtensions(repo.language).some(extension => filepath.endsWith(extension))) return false
 
   return true
 }
 
 const runAction = (repos: Repo[], options: DatasetOptions) => {
   const outputPath = getActionOutputPath(name, options)
-  repos.forEach(({ name }) => {
+  repos.forEach(repo => {
+    const { name } = repo
     const commitsActionOutputPath = getActionOutputPath(COMMITS_ACTION.name, options)
     const commitsFilePath = path.join(commitsActionOutputPath, `${name}.csv`)
 
@@ -48,7 +57,7 @@ const runAction = (repos: Repo[], options: DatasetOptions) => {
       const rightModifiedFiles = new Set(getModifiedFiles(repoPath, rightCommit, baseCommit))
 
       const commonModifiedFiles = leftModifiedFiles.filter(file => rightModifiedFiles.has(file))
-      const relevantFiles = commonModifiedFiles.filter(filepath => isRelevantFile(filepath, options))
+      const relevantFiles = commonModifiedFiles.filter(filepath => isRelevantFile(repo, filepath))
 
       if (relevantFiles.length > 0) {
         commitsCount++

@@ -30,12 +30,13 @@ export const runFetchAction = async (options: DatasetOptions) => {
     topRepos.forEach(repo => {
       repos.push({
         name: repo.name,
-        path: repo.clone_url
+        path: repo.clone_url,
+        language
       })
     })
   }
 
-  const headers = ['name', 'path'] as const
+  const headers = ['name', 'path', 'language'] as const
   const filename = getFetchOutputFile(options)
 
   createCSV(filename, headers, repos)
