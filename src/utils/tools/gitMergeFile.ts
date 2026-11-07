@@ -20,7 +20,7 @@ export const buildGitMergeFileRunner = () => {
       isSuccess: code => code <= 127 // exit code = number of conflicts (capped at 127)
     })
 
-    if (output) writeFile(mergeFile, output)
+    if (output !== undefined) writeFile(mergeFile, output)
   }
 
   return { name, runTool }

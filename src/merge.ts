@@ -14,7 +14,7 @@ export const createFileRevision = (projectPath: string, commit: string, filepath
   const outputPath = path.join(outputDir, `${revisionName}.${getExtension(filepath)}`)
 
   const content = getFileFromCommit(projectPath, commit, filepath)
-  if (!content) {
+  if (content === undefined) {
     throw new Error(`Could not retrieve ${revisionName} revision`)
   }
 

@@ -20,6 +20,7 @@ type MergeContext = {
 }
 
 export type ToolResult = MergeContext & {
+  sameSides: boolean
   tool: string
   conflicts: number
   fail: boolean
@@ -33,7 +34,7 @@ export type ComparisonResult = MergeContext & {
   sameNormalizedContent: boolean
 }
 
-const TOOL_RESULTS_HEADERS = ['project', 'mergeCommit', 'filepath', 'tool', 'conflicts', 'fail', 'timeMeasurements'] as const
+const TOOL_RESULTS_HEADERS = ['project', 'mergeCommit', 'filepath', 'sameSides', 'tool', 'conflicts', 'fail', 'timeMeasurements'] as const
 const TOOL_RESULTS_TRANSFORMERS = { timeMeasurements: (value: number[]) => JSON.stringify(value) }
 
 const COMPARISON_RESULTS_HEADERS = ['project', 'mergeCommit', 'filepath', 'tool', 'otherTool', 'sameContent', 'sameNormalizedContent'] as const
@@ -104,19 +105,16 @@ const validateProjects = (inputFile: string, projectsPath: string, filesPath: st
   return inputRepos
 }
 
+// Returns undefined when the tool produced no output file, i.e. it failed
 const getToolOutput = (outputDir: string, extension: string, tool: string) => {
-  try {
-    const mergeFile = path.join(outputDir, `${tool}.${extension}`)
-    return readFile(mergeFile)
-  } catch {
-    return ''
-  }
+  const mergeFile = path.join(outputDir, `${tool}.${extension}`)
+  return fileExists(mergeFile) ? readFile(mergeFile) : undefined
 }
 
-const computeToolResults = (toolOutput: string) => {
+const computeToolResults = (toolOutput: string | undefined) => {
   return {
-    conflicts: (toolOutput.match(/<<<<<<</g) ?? []).length,
-    fail: toolOutput === ''
+    conflicts: (toolOutput?.match(/<<<<<<</g) ?? []).length,
+    fail: toolOutput === undefined
   }
 }
 
@@ -138,12 +136,17 @@ const computeResults = (
   const comparisonResults: ComparisonResult[] = []
 
   const extension = getExtension(mergeFile)
+  const sameSides = readFile(path.join(outputDir, `left.${extension}`)) === readFile(path.join(outputDir, `right.${extension}`))
+
+  const getComparableOutput = (tool: string) => getToolOutput(outputDir, extension, tool) ?? ''
+
   tools.forEach(tool => {
     const toolOutput = getToolOutput(outputDir, extension, tool)
     const { conflicts, fail } = computeToolResults(toolOutput)
 
     toolResults.push({
       ...mergeContext,
+      sameSides,
       tool,
       conflicts,
       fail,
@@ -152,14 +155,13 @@ const computeResults = (
 
     tools.forEach(otherTool => {
       if (otherTool !== tool) {
-        const otherToolOutput = getToolOutput(outputDir, extension, otherTool)
-        const { sameContent, sameNormalizedContent } = computeComparisonResults(toolOutput, otherToolOutput)
+        const { sameContent, sameNormalizedContent } = computeComparisonResults(getComparableOutput(tool), getComparableOutput(otherTool))
         comparisonResults.push({ ...mergeContext, tool, otherTool, sameContent, sameNormalizedContent })
       }
     })
 
     const groundTruthContent = readFile(mergeFile)
-    const { sameContent, sameNormalizedContent } = computeComparisonResults(toolOutput, groundTruthContent)
+    const { sameContent, sameNormalizedContent } = computeComparisonResults(getComparableOutput(tool), groundTruthContent)
 
     comparisonResults.push({
       ...mergeContext,

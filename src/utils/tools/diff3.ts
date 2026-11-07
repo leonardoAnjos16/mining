@@ -20,7 +20,7 @@ export const buildDiff3Runner = () => {
       isSuccess: code => code === 0 || code === 1 // 1 = conflicts
     })
 
-    if (output) writeFile(mergeFile, output)
+    if (output !== undefined) writeFile(mergeFile, output)
   }
 
   return { name, runTool }
