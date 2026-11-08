@@ -95,6 +95,8 @@ export const computeAgreementMetrics = (results: CompleteResult[], outputDir: st
     )
   ]
   
+  const compared = new ComparisonMetric('compared', () => 0, (current: number) => current + 1)
+
   const tools = new Set<string>()
   const languages = new Set<string>()
   const projects = new Set<string>()
@@ -103,50 +105,49 @@ export const computeAgreementMetrics = (results: CompleteResult[], outputDir: st
     tools.add(result.tool)
     languages.add(getLanguage(result.filepath))
     projects.add(result.project)
+    compared.update(result)
     metrics.forEach(metric => metric.update(result))
   })
 
   const sortedTools = [...tools].sort()
   const headers = ['tool', ...sortedTools]
 
-  metrics.forEach(metric => {
-    {
-      const data = sortedTools.map<Record<string, string | number>>(tool => ({
-        tool,
-        ...sortedTools.reduce((res, otherTool) => ({
-          ...res,
-          [otherTool]: metric.getByTools(tool, otherTool)
-        }), {})
-      }))
-  
-      const filename = path.join(outputDir, `${metric.name}.csv`)
-      createCSV(filename, headers, data)
-    }
+  const writeMatrix = (filename: string, getValue: (tool: string, otherTool: string) => number | string | undefined) => {
+    const data = sortedTools.map<Record<string, string | number>>(tool => ({
+      tool,
+      ...sortedTools.reduce((res, otherTool) => ({
+        ...res,
+        [otherTool]: getValue(tool, otherTool) ?? ''
+      }), {})
+    }))
 
-    ;[...languages].forEach(language => {
-      const data = sortedTools.map<Record<string, string | number>>(tool => ({
-        tool,
-        ...sortedTools.reduce((res, otherTool) => ({
-          ...res,
-          [otherTool]: metric.getByLanguageAndTools(language, tool, otherTool)
-        }), {})
-      }))
+    createCSV(filename, headers, data)
+  }
 
-      const filename = path.join(outputDir, 'languages', language, `${metric.name}.csv`)
-      createCSV(filename, headers, data)
-    })
+  const toPercentage = (value: number | undefined, total: number | undefined) =>
+    value !== undefined && total ? Number(((value / total) * 100).toFixed(1)) : undefined
 
-    ;[...projects].forEach(project => {
-      const data = sortedTools.map<Record<string, string | number>>(tool => ({
-        tool,
-        ...sortedTools.reduce((res, otherTool) => ({
-          ...res,
-          [otherTool]: metric.getByProjectAndTools(project, tool, otherTool)
-        }), {})
-      }))
+  const groups = [
+    { dir: outputDir, get: <T>(metric: ComparisonMetric<T>, tool: string, otherTool: string) => metric.getByTools(tool, otherTool) },
+    ...Array.from(languages, language => ({
+      dir: path.join(outputDir, 'languages', language),
+      get: <T>(metric: ComparisonMetric<T>, tool: string, otherTool: string) => metric.getByLanguageAndTools(language, tool, otherTool)
+    })),
+    ...Array.from(projects, project => ({
+      dir: path.join(outputDir, 'projects', project),
+      get: <T>(metric: ComparisonMetric<T>, tool: string, otherTool: string) => metric.getByProjectAndTools(project, tool, otherTool)
+    }))
+  ]
 
-      const filename = path.join(outputDir, 'projects', project, `${metric.name}.csv`)
-      createCSV(filename, headers, data)
+  groups.forEach(({ dir, get }) => {
+    writeMatrix(path.join(dir, 'compared.csv'), (tool, otherTool) => get(compared, tool, otherTool))
+
+    metrics.forEach(metric => {
+      writeMatrix(path.join(dir, `${metric.name}.csv`), (tool, otherTool) => get(metric, tool, otherTool))
+      writeMatrix(
+        path.join(dir, `${metric.name}-percentage.csv`),
+        (tool, otherTool) => toPercentage(get(metric, tool, otherTool), get(compared, tool, otherTool))
+      )
     })
   })
 }

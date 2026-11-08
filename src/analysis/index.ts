@@ -11,14 +11,24 @@ type AnalysisOptions = {
   output: string
 }
 
+export type AnalyzedToolResult = ToolResult & {
+  comparable: boolean
+  equalGroundTruth: boolean
+}
+
 export type CompleteResult = ComparisonResult & {
+  sameSides: boolean
   toolConflicts: number
   otherToolConflicts: number
-  toolFail: boolean
-  otherToolFail: boolean
   toolEqualGroundTruth: boolean
   otherToolEqualGroundTruth: boolean
 }
+
+const SUBSETS = [
+  { name: 'all', include: (_sameSides: boolean) => true },
+  { name: 'different-sides', include: (sameSides: boolean) => !sameSides },
+  { name: 'same-sides', include: (sameSides: boolean) => sameSides }
+]
 
 export const getLanguage = (filepath: string) => {
   if (filepath.endsWith('.go')) return 'go'
@@ -29,44 +39,52 @@ export const getLanguage = (filepath: string) => {
   return 'unknown'
 }
 
-const joinResults = (toolResults: ToolResult[], comparisonResults: ComparisonResult[]): CompleteResult[] => {
-  const getMapKey = (project: string, mergeCommit: string, filepath: string, tool: string) =>
-    `${project}##${mergeCommit}##${filepath}##${tool}`
+const getScenarioKey = ({ project, mergeCommit, filepath }: { project: string, mergeCommit: string, filepath: string }) =>
+  `${project}##${mergeCommit}##${filepath}`
 
-  const toolResultsMap: Record<string, ToolResult> = {}
-  toolResults.forEach(result => {
-    const { project, mergeCommit, filepath, tool } = result
-    toolResultsMap[getMapKey(project, mergeCommit, filepath, tool)] = result
+const getToolKey = (result: { project: string, mergeCommit: string, filepath: string }, tool: string) =>
+  `${getScenarioKey(result)}##${tool}`
+
+const analyzeToolResults = (toolResults: ToolResult[], comparisonResults: ComparisonResult[]): AnalyzedToolResult[] => {
+  const failedScenarios = new Set(toolResults.filter(({ fail }) => fail).map(getScenarioKey))
+
+  const equalGroundTruth = new Map<string, boolean>()
+  comparisonResults.forEach(result => {
+    if (result.otherTool === 'ground-truth') {
+      equalGroundTruth.set(getToolKey(result, result.tool), result.sameNormalizedContent)
+    }
   })
 
-  const groundTruthComparisonResultsMap: Record<string, boolean> = {}
-  comparisonResults.forEach(({ project, mergeCommit, filepath, tool, otherTool, sameNormalizedContent }) => {
-    if (otherTool !== 'ground-truth') return
+  return toolResults.map(result => ({
+    ...result,
+    comparable: !failedScenarios.has(getScenarioKey(result)),
+    equalGroundTruth: equalGroundTruth.get(getToolKey(result, result.tool)) ?? false
+  }))
+}
 
-    groundTruthComparisonResultsMap[getMapKey(project, mergeCommit, filepath, tool)] = sameNormalizedContent
-  })
+const joinResults = (toolResults: AnalyzedToolResult[], comparisonResults: ComparisonResult[]): CompleteResult[] => {
+  const toolResultsMap = new Map(toolResults.map(result => [getToolKey(result, result.tool), result]))
 
   const results: CompleteResult[] = []
   comparisonResults.forEach(result => {
-    const { project, mergeCommit, filepath, tool, otherTool } = result
-    if (otherTool === 'ground-truth') return
+    if (result.otherTool === 'ground-truth') return
 
-    const toolMapKey = getMapKey(project, mergeCommit, filepath, tool)
-    const toolResults = toolResultsMap[toolMapKey]
-    const toolEqualGroundTruth = groundTruthComparisonResultsMap[toolMapKey]
+    const toolResult = toolResultsMap.get(getToolKey(result, result.tool))
+    const otherToolResult = toolResultsMap.get(getToolKey(result, result.otherTool))
 
-    const otherToolMapKey = getMapKey(project, mergeCommit, filepath, otherTool)
-    const otherToolResults = toolResultsMap[otherToolMapKey]
-    const otherToolEqualGroundTruth = groundTruthComparisonResultsMap[otherToolMapKey]
+    if (!toolResult || !otherToolResult) {
+      throw new Error(`Missing tool results for ${getScenarioKey(result)}`)
+    }
+
+    if (!toolResult.comparable) return
 
     results.push({
       ...result,
-      toolConflicts: toolResults.conflicts,
-      otherToolConflicts: otherToolResults.conflicts,
-      toolFail: toolResults.fail,
-      otherToolFail: otherToolResults.fail,
-      toolEqualGroundTruth,
-      otherToolEqualGroundTruth
+      sameSides: toolResult.sameSides,
+      toolConflicts: toolResult.conflicts,
+      otherToolConflicts: otherToolResult.conflicts,
+      toolEqualGroundTruth: toolResult.equalGroundTruth,
+      otherToolEqualGroundTruth: otherToolResult.equalGroundTruth
     })
   })
 
@@ -105,11 +123,18 @@ export const computeMetrics = (resultsPath: string, options: AnalysisOptions) =>
     ';'
   )
 
-  const completeResults = joinResults(toolResults, comparisonResults)
+  const analyzedToolResults = analyzeToolResults(toolResults, comparisonResults)
+  const completeResults = joinResults(analyzedToolResults, comparisonResults)
   const outputDir = path.resolve(options.output, 'analysis')
 
-  createBoxPlot(toolResults, outputDir)
   computeProjectMetrics(toolResults, outputDir)
-  computeToolMetrics(toolResults, outputDir)
-  computeAgreementMetrics(completeResults, outputDir)
+
+  SUBSETS.forEach(({ name, include }) => {
+    const subsetDir = path.join(outputDir, name)
+    const subsetToolResults = analyzedToolResults.filter(({ sameSides }) => include(sameSides))
+
+    createBoxPlot(subsetToolResults.filter(({ comparable }) => comparable), subsetDir)
+    computeToolMetrics(subsetToolResults, subsetDir)
+    computeAgreementMetrics(completeResults.filter(({ sameSides }) => include(sameSides)), subsetDir)
+  })
 }

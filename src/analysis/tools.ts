@@ -1,11 +1,10 @@
 import path from "path"
-import { ToolResult } from "../experiment.js"
 import { createCSV } from "../utils/csv.js"
-import { getLanguage } from "./index.js"
+import { AnalyzedToolResult, getLanguage } from "./index.js"
 
 export class ToolMetric<T, R> {
   private defaultValue: () => T
-  private onResult: (current: T, result: ToolResult) => T
+  private onResult: (current: T, result: AnalyzedToolResult) => T
   private onFinish: (value: T) => R
 
   private byTool: Record<string, T> = {}
@@ -17,7 +16,7 @@ export class ToolMetric<T, R> {
   constructor(
     name: string,
     defaultValue: () => T,
-    onResult: (current: T, result: ToolResult) => T,
+    onResult: (current: T, result: AnalyzedToolResult) => T,
     onFinish: (value: T) => R
   ) {
     this.name = name
@@ -26,7 +25,7 @@ export class ToolMetric<T, R> {
     this.onFinish = onFinish
   }
 
-  update(result: ToolResult) {
+  update(result: AnalyzedToolResult) {
     const { project, filepath, tool } = result
     this.byTool[tool] = this.onResult(this.byTool[tool] ?? this.defaultValue(), result)
 
@@ -45,56 +44,80 @@ export class ToolMetric<T, R> {
   }
 
   getByTool(tool: string) {
-    return this.onFinish(this.byTool[tool])
+    return this.onFinish(this.byTool[tool] ?? this.defaultValue())
   }
 
   getByLanguageAndTool(language: string, tool: string) {
-    return this.onFinish(this.byLanguageAndTool[language][tool])
+    return this.onFinish(this.byLanguageAndTool[language]?.[tool] ?? this.defaultValue())
   }
 
   getByProjectAndTool(project: string, tool: string) {
-    return this.onFinish(this.byProjectAndTool[project][tool])
+    return this.onFinish(this.byProjectAndTool[project]?.[tool] ?? this.defaultValue())
   }
 }
 
-export const computeToolMetrics = (toolResults: ToolResult[], outputDir: string) => {
+type Predicate = (result: AnalyzedToolResult) => boolean
+
+const isComparable: Predicate = ({ comparable }) => comparable
+const isClean: Predicate = ({ conflicts }) => conflicts === 0
+
+const formatPercentage = (count: number, total: number) => total > 0 ? Number(((count / total) * 100).toFixed(1)) : ''
+
+const count = (name: string, predicate: Predicate, include: Predicate = isComparable) =>
+  new ToolMetric<number, number>(
+    name,
+    () => 0,
+    (current, result) => current + (include(result) && predicate(result) ? 1 : 0),
+    value => value
+  )
+
+const percentage = (name: string, predicate: Predicate, include: Predicate = isComparable) =>
+  new ToolMetric<{ count: number, total: number }, number | string>(
+    `${name} %`,
+    () => ({ count: 0, total: 0 }),
+    (current, result) => include(result)
+      ? { count: current.count + (predicate(result) ? 1 : 0), total: current.total + 1 }
+      : current,
+    value => formatPercentage(value.count, value.total)
+  )
+
+const all: Predicate = () => true
+
+export const computeToolMetrics = (toolResults: AnalyzedToolResult[], outputDir: string) => {
   const metrics = [
+    count('files', all, all),
+    count('failures', ({ fail }) => fail, all),
+    percentage('failures', ({ fail }) => fail, all),
+    count('timeouts', ({ timeout }) => timeout, all),
+    count('compared files', all),
     new ToolMetric(
       'conflicts',
       () => 0,
-      (current: number, { conflicts }: ToolResult) => current + conflicts,
+      (current: number, result: AnalyzedToolResult) => current + (isComparable(result) ? result.conflicts : 0),
       (value: number) => value
     ),
     new ToolMetric(
       'scenarios with conflict',
       () => new Set<string>(),
-      (current: Set<string>, { mergeCommit, conflicts }: ToolResult) => {
-        const newValue = new Set(...current)
-        if (conflicts > 0) newValue.add(mergeCommit)
-  
-        return newValue
+      (current: Set<string>, result: AnalyzedToolResult) => {
+        if (isComparable(result) && !isClean(result)) current.add(`${result.project}##${result.mergeCommit}`)
+        return current
       },
       (value: Set<string>) => value.size
     ),
-    new ToolMetric(
-      'files with conflict',
-      () => 0,
-      (current: number, { conflicts }: ToolResult) => current + (conflicts > 0 ? 1 : 0),
-      (value: number) => value
-    ),
-    new ToolMetric(
-      'failures',
-      () => 0,
-      (current: number, { fail }: ToolResult) => current + (fail ? 1 : 0),
-      (value: number) => value
-    )
+    count('files with conflict', result => !isClean(result)),
+    percentage('files with conflict', result => !isClean(result)),
+    count('clean and equal to merge', result => isClean(result) && result.equalGroundTruth),
+    percentage('clean and equal to merge', result => isClean(result) && result.equalGroundTruth),
+    count('clean and different from merge', result => isClean(result) && !result.equalGroundTruth),
+    percentage('clean and different from merge', result => isClean(result) && !result.equalGroundTruth)
   ]
 
   const tools = new Set<string>()
   const languages = new Set<string>()
   const projects = new Set<string>()
 
-  toolResults.forEach((result: ToolResult) => {
+  toolResults.forEach(result => {
     tools.add(result.tool)
     languages.add(getLanguage(result.filepath))
     projects.add(result.project)
@@ -112,7 +135,7 @@ export const computeToolMetrics = (toolResults: ToolResult[], outputDir: string)
         [metric.name]: metric.getByTool(tool)
       }), {})
     }))
-  
+
     const filename = path.join(outputDir, 'tools.csv')
     createCSV(filename, headers, data)
   }
