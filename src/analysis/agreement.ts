@@ -96,6 +96,14 @@ export const computeAgreementMetrics = (results: CompleteResult[], outputDir: st
   ]
   
   const compared = new ComparisonMetric('compared', () => 0, (current: number) => current + 1)
+  const conflictDisagreements = new ComparisonMetric(
+    'conflict-disagreements',
+    () => 0,
+    (current: number, result: CompleteResult) => current + ((result.toolConflicts > 0) !== (result.otherToolConflicts > 0) ? 1 : 0)
+  )
+
+  const bases = [compared, conflictDisagreements]
+  const percentageBases: Record<string, ComparisonMetric<number>> = { afp: conflictDisagreements, afn: conflictDisagreements }
 
   const tools = new Set<string>()
   const languages = new Set<string>()
@@ -105,7 +113,7 @@ export const computeAgreementMetrics = (results: CompleteResult[], outputDir: st
     tools.add(result.tool)
     languages.add(getLanguage(result.filepath))
     projects.add(result.project)
-    compared.update(result)
+    bases.forEach(base => base.update(result))
     metrics.forEach(metric => metric.update(result))
   })
 
@@ -140,13 +148,13 @@ export const computeAgreementMetrics = (results: CompleteResult[], outputDir: st
   ]
 
   groups.forEach(({ dir, get }) => {
-    writeMatrix(path.join(dir, 'compared.csv'), (tool, otherTool) => get(compared, tool, otherTool))
+    bases.forEach(base => writeMatrix(path.join(dir, `${base.name}.csv`), (tool, otherTool) => get(base, tool, otherTool)))
 
     metrics.forEach(metric => {
       writeMatrix(path.join(dir, `${metric.name}.csv`), (tool, otherTool) => get(metric, tool, otherTool))
       writeMatrix(
         path.join(dir, `${metric.name}-percentage.csv`),
-        (tool, otherTool) => toPercentage(get(metric, tool, otherTool), get(compared, tool, otherTool))
+        (tool, otherTool) => toPercentage(get(metric, tool, otherTool), get(percentageBases[metric.name] ?? compared, tool, otherTool))
       )
     })
   })
