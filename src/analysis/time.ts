@@ -67,6 +67,7 @@ const plotMeans = (data: TimeMeasurement[]) => {
     ]
   })
 
+  plot.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
   plot.insertAdjacentHTML(
     'afterbegin',
     '<rect width="100%" height="100%" fill="white"/>'
