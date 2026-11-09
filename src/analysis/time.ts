@@ -9,30 +9,38 @@ type TimeMeasurement = {
   mean: number
 }
 
+const mean = (values: number[]) => values.reduce((total, value) => total + value, 0) / values.length
+
 const trimmedMean = (values: number[]) => {
   const sum = values.reduce((total, value) => total + value, 0)
   return (sum - Math.min(...values) - Math.max(...values)) / (values.length - 2)
 }
 
-const computeMeans = (scenarios: Scenario[]) => {
+const AGGREGATIONS = [
+  { name: 'all', minMeasurements: 1, aggregate: mean },
+  { name: 'without-first', minMeasurements: 2, aggregate: (values: number[]) => mean(values.slice(1)) },
+  { name: 'trimmed', minMeasurements: 3, aggregate: trimmedMean }
+]
+
+const computeMeans = (scenarios: Scenario[], { minMeasurements, aggregate }: (typeof AGGREGATIONS)[number]) => {
   const means: TimeMeasurement[] = []
+  let skipped = 0
+
   scenarios.forEach(({ tools }) => {
     Object.entries(tools).forEach(([tool, { timeMeasurements }]) => {
-      if (timeMeasurements.length <= 2) {
-        console.error(`Could not compute mean for ${tool}`)
+      if (timeMeasurements.length < minMeasurements) {
+        skipped++
         return
       }
 
-      means.push({ tool, mean: trimmedMean(timeMeasurements) })
+      means.push({ tool, mean: aggregate(timeMeasurements) })
     })
   })
 
-  return means
+  return { means, skipped }
 }
 
-export const createBoxPlot = (scenarios: Scenario[], outputDir: string) => {
-  const data = computeMeans(scenarios)
-
+const plotMeans = (data: TimeMeasurement[]) => {
   const { document } = new JSDOM().window
   const plot = Plot.plot({
     document,
@@ -64,6 +72,18 @@ export const createBoxPlot = (scenarios: Scenario[], outputDir: string) => {
     '<rect width="100%" height="100%" fill="white"/>'
   )
 
-  const filepath = path.join(outputDir, 'boxplot.svg')
-  writeFile(filepath, plot.outerHTML)
+  return plot.outerHTML
+}
+
+export const createBoxPlots = (scenarios: Scenario[], outputDir: string) => {
+  AGGREGATIONS.forEach(aggregation => {
+    const filepath = path.join(outputDir, `boxplot-${aggregation.name}.svg`)
+    const { means, skipped } = computeMeans(scenarios, aggregation)
+
+    if (skipped > 0) {
+      console.error(`${filepath}: skipped ${skipped} results with fewer than ${aggregation.minMeasurements} time measurements`)
+    }
+
+    writeFile(filepath, plotMeans(means))
+  })
 }
