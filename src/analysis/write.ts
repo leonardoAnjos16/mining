@@ -1,15 +1,15 @@
 import path from "path"
-import { createCSV } from "../utils/csv.js"
+import { Report } from "./report.js"
 import { Scenario } from "./load.js"
 import { groupBy } from "./group.js"
-import { getPairs, getRuns, PAIR_METRICS, TOOL_METRICS } from "./metrics.js"
+import { getPairs, getRuns, PAIR_METRICS, TOOL_TABLES } from "./metrics.js"
 
 const countScenarios = (scenarios: Scenario[]) => ({
   scenarios: new Set(scenarios.map(({ project, mergeCommit }) => `${project}##${mergeCommit}`)).size,
   files: scenarios.length
 })
 
-export const writeCounts = (dir: string, scenarios: Scenario[]) => {
+export const writeCounts = (report: Report, scenarios: Scenario[]) => {
   const total = countScenarios(scenarios)
 
   const byProject = Array.from(groupBy(scenarios, ({ project }) => project), ([project, projectScenarios]) => ({
@@ -18,8 +18,8 @@ export const writeCounts = (dir: string, scenarios: Scenario[]) => {
     ...countScenarios(projectScenarios)
   })).sort((a, b) => a.language.localeCompare(b.language) || a.project.localeCompare(b.project))
 
-  createCSV(
-    path.join(dir, 'project-counts.csv'),
+  report.writeTable(
+    'project-counts.csv',
     ['project', 'language', 'scenarios', 'files'],
     [...byProject, { project: 'total', language: '', ...total }]
   )
@@ -29,23 +29,27 @@ export const writeCounts = (dir: string, scenarios: Scenario[]) => {
     ...countScenarios(languageScenarios)
   })).sort((a, b) => a.language.localeCompare(b.language))
 
-  createCSV(
-    path.join(dir, 'language-counts.csv'),
+  report.writeTable(
+    'language-counts.csv',
     ['language', 'scenarios', 'files'],
     [...byLanguage, { language: 'total', ...total }]
   )
 }
 
-export const writeToolMetrics = (dir: string, scenarios: Scenario[], tools: string[]) => {
-  const data = tools.map<Record<string, string | number>>(tool => {
-    const runs = getRuns(scenarios, tool)
-    return { tool, ...Object.fromEntries(TOOL_METRICS.map(({ name, value }) => [name, value(runs)])) }
-  })
+export const writeToolMetrics = (report: Report, dir: string, scenarios: Scenario[], tools: string[]) => {
+  const runs = Object.fromEntries(tools.map(tool => [tool, getRuns(scenarios, tool)]))
 
-  createCSV(path.join(dir, 'tools.csv'), ['tool', ...TOOL_METRICS.map(({ name }) => name)], data)
+  Object.entries(TOOL_TABLES).forEach(([file, metrics]) => {
+    const data = tools.map<Record<string, string | number>>(tool => ({
+      tool,
+      ...Object.fromEntries(metrics.map(({ name, value }) => [name, value(runs[tool])]))
+    }))
+
+    report.writeTable(path.join(dir, file), ['tool', ...metrics.map(({ name }) => name)], data)
+  })
 }
 
-export const writePairMetrics = (dir: string, scenarios: Scenario[], tools: string[]) => {
+export const writePairMetrics = (report: Report, dir: string, scenarios: Scenario[], tools: string[]) => {
   PAIR_METRICS.forEach(({ name, value }) => {
     const data = tools.map<Record<string, string | number>>(tool => ({
       tool,
@@ -55,6 +59,6 @@ export const writePairMetrics = (dir: string, scenarios: Scenario[], tools: stri
       ]))
     }))
 
-    createCSV(path.join(dir, `${name}.csv`), ['tool', ...tools], data)
+    report.writeTable(path.join(dir, `${name}.csv`), ['tool', ...tools], data)
   })
 }

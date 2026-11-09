@@ -3,6 +3,7 @@ import { createBoxPlots } from "./time.js"
 import { loadScenarios, Scenario } from "./load.js"
 import { groupScenarios } from "./group.js"
 import { writeCounts, writePairMetrics, writeToolMetrics } from "./write.js"
+import { Report } from "./report.js"
 
 type AnalysisOptions = {
   output: string
@@ -18,19 +19,20 @@ const SUBSETS = [
 export const computeMetrics = (resultsPath: string, options: AnalysisOptions) => {
   const scenarios = loadScenarios(resultsPath)
   const tools = [...new Set(scenarios.flatMap(({ tools }) => Object.keys(tools)))].sort()
-  const outputDir = path.resolve(options.output, 'analysis', options.alias ?? Date.now().toString())
+  const report = new Report(path.resolve(options.output, 'analysis', options.alias ?? Date.now().toString()))
 
-  writeCounts(outputDir, scenarios)
+  writeCounts(report, scenarios)
 
   SUBSETS.forEach(({ name, include }) => {
-    const subsetDir = path.join(outputDir, name)
     const subset = scenarios.filter(include)
     const comparable = subset.filter(({ comparable }) => comparable)
 
-    groupScenarios(subset, subsetDir).forEach(({ dir, scenarios }) => writeToolMetrics(dir, scenarios, tools))
-    groupScenarios(comparable, subsetDir).forEach(({ dir, scenarios }) => {
-      writePairMetrics(dir, scenarios, tools)
-      createBoxPlots(scenarios, dir)
+    groupScenarios(subset, name).forEach(({ dir, scenarios }) => writeToolMetrics(report, dir, scenarios, tools))
+    groupScenarios(comparable, name).forEach(({ dir, scenarios }) => {
+      writePairMetrics(report, dir, scenarios, tools)
+      createBoxPlots(scenarios, report.resolve(dir))
     })
   })
+
+  report.writePage()
 }

@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Merge analysis</title>
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; margin: 0; color: #1f2328; background: #fff; }
+    header { position: sticky; top: 0; background: #f6f8fa; border-bottom: 1px solid #d0d7de; padding: 12px 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+    header h1 { font-size: 16px; margin: 0 16px 0 0; }
+    main { padding: 16px 24px; max-width: 1400px; }
+    label { display: inline-flex; gap: 6px; align-items: center; }
+    select, button { font: inherit; }
+    nav { display: flex; gap: 4px; }
+    nav button { border: 1px solid #d0d7de; background: #fff; padding: 4px 12px; border-radius: 6px; cursor: pointer; }
+    nav button.active { background: #0969da; border-color: #0969da; color: #fff; }
+    h2 { font-size: 15px; margin: 24px 0 8px; }
+    .description { color: #59636e; margin: 4px 0 12px; max-width: 900px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 12px; }
+    .table-wrapper { overflow-x: auto; }
+    table { border-collapse: collapse; }
+    th, td { border: 1px solid #d0d7de; padding: 4px 10px; text-align: right; white-space: nowrap; }
+    th { background: #f6f8fa; }
+    th:first-child, td:first-child { text-align: left; font-weight: 600; }
+    td.empty { background: #f6f8fa; }
+    tr.total td { font-weight: 600; border-top: 2px solid #8c959f; }
+    .csv-link { font-size: 12px; margin-left: 8px; font-weight: normal; }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 16px; color: #59636e; margin-top: 12px; }
+    dt { font-weight: 600; color: #1f2328; }
+    dd { margin: 0; }
+    img { max-width: 100%; border: 1px solid #d0d7de; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Merge analysis</h1>
+    <label>Files <select id="subset"></select></label>
+    <label>Scope <select id="scope"></select></label>
+    <nav id="tabs"></nav>
+  </header>
+  <main id="content"></main>
+
+  <script src="data.js"></script>
+  <script>
+    const { tables } = window.ANALYSIS
+
+    const SUBSETS = {
+      'all': 'All',
+      'different-sides': 'Different sides',
+      'same-sides': 'Same sides (left = right)'
+    }
+
+    const TABS = { dataset: 'Dataset', tools: 'Tools', pairs: 'Pairs', time: 'Time' }
+
+    const TOOL_COLUMNS = {
+      'scenarios': 'Merge commits in this scope.',
+      'files': 'Files in this scope.',
+      'failures': 'Files where the tool failed (no output or timeout). Percentage of all files.',
+      'timeouts': 'Files where the tool was killed after the timeout.',
+      'conflicts': 'Conflict markers in the output.',
+      'scenarios with conflict': 'Merge commits with at least one conflicting file. Percentage of merge commits with at least one file where every tool succeeded.',
+      'files with conflict': 'Files with at least one conflict. Percentage of files where every tool succeeded.'
+    }
+
+    const CORRECTNESS_COLUMNS = {
+      'with conflict': 'The tool reported at least one conflict.',
+      'clean and equal to merge': 'No conflicts, and equal to the merge commit.',
+      'clean and different from merge': 'No conflicts, but different from the merge commit: possibly a missed conflict.'
+    }
+
+    const PAIR_METRICS = {
+      'agreements': { base: 'compared', description: 'Both tools produced exactly the same output.' },
+      'normalized-agreements': { base: 'compared', description: 'Both tools produced the same output, ignoring whitespace.' },
+      'afp': { base: 'conflict-disagreements', description: 'Additional false positive: the row tool reports a conflict, while the column tool merges cleanly and matches the merge commit.' },
+      'afn': { base: 'conflict-disagreements', description: 'Additional false negative: the row tool merges cleanly but differs from the merge commit, while the column tool reports a conflict.' },
+      'compared': { description: 'Files where every tool succeeded. Base for agreement percentages.' },
+      'conflict-disagreements': { description: 'Files where exactly one of the two tools reports a conflict. Base for AFP and AFN percentages.' }
+    }
+
+    const TIME_PLOTS = {
+      'trimmed': 'Mean without the fastest and slowest runs',
+      'without-first': 'Mean without the first run',
+      'all': 'Mean of all runs'
+    }
+
+    const defaults = { subset: 'all', scope: '', tab: 'dataset', metric: 'afp', percentage: '1', time: 'trimmed' }
+    const state = { ...defaults, ...Object.fromEntries(new URLSearchParams(location.hash.slice(1))) }
+
+    const el = (tag, attributes = {}, ...children) => {
+      const element = Object.assign(document.createElement(tag), attributes)
+      element.append(...children.filter(child => child !== null && child !== undefined))
+      return element
+    }
+
+    const getDir = () => state.scope ? `${state.subset}/${state.scope}` : state.subset
+
+    const getScopes = subset => {
+      const scopes = { languages: [], projects: [] }
+      Object.keys(tables).forEach(file => {
+        const match = file.match(/^([^/]+)\/(languages|projects)\/([^/]+)\/tools\.csv$/)
+        if (match && match[1] === subset) scopes[match[2]].push(match[3])
+      })
+      Object.values(scopes).forEach(names => names.sort())
+      return scopes
+    }
+
+    const select = (id, options, value, onChange) => {
+      const element = document.getElementById(id)
+      element.replaceChildren(...options)
+      element.value = value
+      element.onchange = () => onChange(element.value)
+    }
+
+    const update = changes => {
+      Object.assign(state, changes)
+      location.hash = new URLSearchParams(state).toString()
+      render()
+    }
+
+    const csvTitle = (title, file) => el('h2', {}, title, el('a', { className: 'csv-link', href: file, textContent: file }))
+
+    const renderTable = (file, { formatCell = value => value, styleCell = () => '', titleCell = () => '' } = {}) => {
+      const { headers, rows } = tables[file]
+      return el('div', { className: 'table-wrapper' }, el('table', {},
+        el('thead', {}, el('tr', {}, ...headers.map(header => el('th', { textContent: header })))),
+        el('tbody', {}, ...rows.map((row, rowIndex) => el('tr', { className: row[0] === 'total' ? 'total' : '' },
+          ...row.map((value, columnIndex) => {
+            if (columnIndex > 0 && value === '') return el('td', { className: 'empty' })
+            const cell = el('td', { textContent: columnIndex > 0 ? formatCell(value, headers[columnIndex]) : value })
+            cell.style.cssText = columnIndex > 0 ? styleCell(value) : ''
+            cell.title = columnIndex > 0 ? titleCell(rowIndex, columnIndex) : ''
+            return cell
+          })
+        )))
+      ))
+    }
+
+    const describe = descriptions => el('dl', {}, ...Object.entries(descriptions).flatMap(([name, description]) => [
+      el('dt', { textContent: name }), el('dd', { textContent: description })
+    ]))
+
+    const formatPercentageColumns = (value, header) => header.endsWith(' %') ? `${value}%` : value
+
+    const renderTools = () => {
+      const dir = getDir()
+      return [
+        csvTitle('Results per tool', `${dir}/tools.csv`),
+        el('p', { className: 'description', textContent: 'Conflicts only count files where every tool succeeded.' }),
+        renderTable(`${dir}/tools.csv`, { formatCell: formatPercentageColumns }),
+        describe(TOOL_COLUMNS),
+        csvTitle('Correctness', `${dir}/correctness.csv`),
+        el('p', { className: 'description', textContent: 'Each output compared with the merge commit, ignoring whitespace. Only files where every tool succeeded; the three counts of a row add up to those files.' }),
+        renderTable(`${dir}/correctness.csv`, { formatCell: formatPercentageColumns }),
+        describe(CORRECTNESS_COLUMNS)
+      ]
+    }
+
+    const renderPairs = () => {
+      const dir = getDir()
+      if (!tables[`${dir}/compared.csv`]) return [el('p', { textContent: 'No files where every tool succeeded in this scope.' })]
+
+      const { base, description } = PAIR_METRICS[state.metric]
+      const percentage = base && state.percentage === '1'
+      const file = `${dir}/${state.metric}${percentage ? '-percentage' : ''}.csv`
+
+      const values = tables[file].rows.flatMap(row => row.slice(1)).filter(value => value !== '')
+      const max = Math.max(...values, 0)
+
+      const controls = el('div', { className: 'controls' },
+        el('label', {}, 'Metric ', (() => {
+          const metric = el('select', {}, ...Object.keys(PAIR_METRICS).map(name => el('option', { value: name, textContent: name })))
+          metric.value = state.metric
+          metric.onchange = () => update({ metric: metric.value })
+          return metric
+        })()),
+        base ? el('label', {}, (() => {
+          const checkbox = el('input', { type: 'checkbox', checked: percentage })
+          checkbox.onchange = () => update({ percentage: checkbox.checked ? '1' : '0' })
+          return checkbox
+        })(), `Percentage of ${base}`) : null
+      )
+
+      const count = tables[`${dir}/${state.metric}.csv`]
+      const total = base && tables[`${dir}/${base}.csv`]
+
+      return [
+        controls,
+        el('p', { className: 'description', textContent: `${description} Rows are the tool, columns the other tool.` }),
+        csvTitle(state.metric, file),
+        renderTable(file, {
+          formatCell: value => percentage ? `${value}%` : value,
+          styleCell: value => max > 0 ? `background: rgba(9, 105, 218, ${(0.05 + 0.45 * value / max).toFixed(2)})` : '',
+          titleCell: (row, column) => total ? `${count.rows[row][column]} of ${total.rows[row][column]} ${base}` : ''
+        })
+      ]
+    }
+
+    const renderTime = () => {
+      const dir = getDir()
+      if (!tables[`${dir}/compared.csv`]) return [el('p', { textContent: 'No files where every tool succeeded in this scope.' })]
+
+      const plot = el('select', {}, ...Object.entries(TIME_PLOTS).map(([name, label]) => el('option', { value: name, textContent: label })))
+      plot.value = state.time
+      plot.onchange = () => update({ time: plot.value })
+
+      const file = `${dir}/boxplot-${state.time}.svg`
+      return [
+        el('div', { className: 'controls' }, el('label', {}, 'Time ', plot)),
+        el('p', { className: 'description', textContent: 'One point per file and tool, only for files where every tool succeeded. Log scale.' }),
+        csvTitle('Time per file', file),
+        el('img', { src: file, alt: `Box plot: ${TIME_PLOTS[state.time]}` })
+      ]
+    }
+
+    const renderDataset = () => [
+      el('p', { className: 'description', textContent: 'All files in the experiment, regardless of the selected files and scope. A scenario is a merge commit.' }),
+      csvTitle('Per language', 'language-counts.csv'),
+      renderTable('language-counts.csv'),
+      csvTitle('Per project', 'project-counts.csv'),
+      renderTable('project-counts.csv')
+    ]
+
+    const render = () => {
+      const scopes = getScopes(state.subset)
+      if (state.scope && !tables[`${state.subset}/${state.scope}/tools.csv`]) state.scope = ''
+
+      select('subset', Object.entries(SUBSETS)
+        .filter(([name]) => tables[`${name}/tools.csv`])
+        .map(([name, label]) => el('option', { value: name, textContent: label })), state.subset, subset => update({ subset }))
+
+      select('scope', [
+        el('option', { value: '', textContent: 'Overall' }),
+        el('optgroup', { label: 'Languages' }, ...scopes.languages.map(name => el('option', { value: `languages/${name}`, textContent: name }))),
+        el('optgroup', { label: 'Projects' }, ...scopes.projects.map(name => el('option', { value: `projects/${name}`, textContent: name })))
+      ], state.scope, scope => update({ scope }))
+
+      document.getElementById('tabs').replaceChildren(...Object.entries(TABS).map(([name, label]) => {
+        const button = el('button', { textContent: label, className: name === state.tab ? 'active' : '' })
+        button.onclick = () => update({ tab: name })
+        return button
+      }))
+
+      const renderers = { tools: renderTools, pairs: renderPairs, time: renderTime, dataset: renderDataset }
+      document.getElementById('content').replaceChildren(...renderers[state.tab]())
+    }
+
+    render()
+  </script>
+</body>
+</html>
