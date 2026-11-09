@@ -29,6 +29,10 @@
     dt { font-weight: 600; color: #1f2328; }
     dd { margin: 0; }
     img { max-width: 100%; border: 1px solid #d0d7de; }
+    .hide { border: none; background: none; color: #8c959f; cursor: pointer; padding: 0 6px 0 0; }
+    .hide:hover { color: #cf222e; }
+    #hidden { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    #hidden button { border: 1px solid #d0d7de; background: #fff; border-radius: 12px; padding: 0 8px; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -37,6 +41,7 @@
     <label>Files <select id="subset"></select></label>
     <label>Scope <select id="scope"></select></label>
     <nav id="tabs"></nav>
+    <div id="hidden"></div>
   </header>
   <main id="content"></main>
 
@@ -83,7 +88,7 @@
       'all': 'Mean of all runs'
     }
 
-    const defaults = { subset: 'all', scope: '', tab: 'dataset', metric: 'afp', percentage: '1', time: 'trimmed' }
+    const defaults = { subset: 'all', scope: '', tab: 'dataset', metric: 'afp', percentage: '1', time: 'trimmed', hidden: '' }
     const state = { ...defaults, ...Object.fromEntries(new URLSearchParams(location.hash.slice(1))) }
 
     const el = (tag, attributes = {}, ...children) => {
@@ -119,16 +124,42 @@
 
     const csvTitle = (title, file) => el('h2', {}, title, el('a', { className: 'csv-link', href: file, textContent: file }))
 
+    const getHidden = () => new Set(state.hidden.split(',').filter(Boolean))
+
+    const toggleHidden = name => {
+      const hidden = getHidden()
+      if (hidden.has(name)) hidden.delete(name)
+      else hidden.add(name)
+      update({ hidden: Array.from(hidden).join(',') })
+    }
+
+    const getVisible = ({ headers, rows }) => {
+      const hidden = getHidden()
+      return {
+        columns: headers.map((_, index) => index).filter(index => index === 0 || !hidden.has(headers[index])),
+        rows: rows.map((row, index) => ({ row, index })).filter(({ row }) => !hidden.has(row[0]))
+      }
+    }
+
+    const hideButton = name => {
+      const button = el('button', { className: 'hide', textContent: '×', title: `Hide ${name}` })
+      button.onclick = () => toggleHidden(name)
+      return button
+    }
+
     const renderTable = (file, { formatCell = value => value, styleCell = () => '', titleCell = () => '' } = {}) => {
-      const { headers, rows } = tables[file]
+      const { headers } = tables[file]
+      const { columns, rows } = getVisible(tables[file])
       return el('div', { className: 'table-wrapper' }, el('table', {},
-        el('thead', {}, el('tr', {}, ...headers.map(header => el('th', { textContent: header })))),
-        el('tbody', {}, ...rows.map((row, rowIndex) => el('tr', { className: row[0] === 'total' ? 'total' : '' },
-          ...row.map((value, columnIndex) => {
-            if (columnIndex > 0 && value === '') return el('td', { className: 'empty' })
-            const cell = el('td', { textContent: columnIndex > 0 ? formatCell(value, headers[columnIndex]) : value })
-            cell.style.cssText = columnIndex > 0 ? styleCell(value) : ''
-            cell.title = columnIndex > 0 ? titleCell(rowIndex, columnIndex) : ''
+        el('thead', {}, el('tr', {}, ...columns.map(columnIndex => el('th', { textContent: headers[columnIndex] })))),
+        el('tbody', {}, ...rows.map(({ row, index: rowIndex }) => el('tr', { className: row[0] === 'total' ? 'total' : '' },
+          ...columns.map(columnIndex => {
+            const value = row[columnIndex]
+            if (columnIndex === 0) return el('td', {}, row[0] === 'total' ? null : hideButton(value), value)
+            if (value === '') return el('td', { className: 'empty' })
+            const cell = el('td', { textContent: formatCell(value, headers[columnIndex]) })
+            cell.style.cssText = styleCell(value)
+            cell.title = titleCell(rowIndex, columnIndex)
             return cell
           })
         )))
@@ -163,7 +194,8 @@
       const percentage = base && state.percentage === '1'
       const file = `${dir}/${state.metric}${percentage ? '-percentage' : ''}.csv`
 
-      const values = tables[file].rows.flatMap(row => row.slice(1)).filter(value => value !== '')
+      const visible = getVisible(tables[file])
+      const values = visible.rows.flatMap(({ row }) => visible.columns.slice(1).map(index => row[index])).filter(value => value !== '')
       const max = Math.max(...values, 0)
 
       const controls = el('div', { className: 'controls' },
@@ -239,6 +271,19 @@
         button.onclick = () => update({ tab: name })
         return button
       }))
+
+      const hidden = Array.from(getHidden())
+      const showAll = el('button', { textContent: 'Show all' })
+      showAll.onclick = () => update({ hidden: '' })
+      document.getElementById('hidden').replaceChildren(...(hidden.length === 0 ? [] : [
+        'Hidden',
+        ...hidden.map(name => {
+          const button = el('button', { textContent: `${name} ×`, title: `Show ${name}` })
+          button.onclick = () => toggleHidden(name)
+          return button
+        }),
+        showAll
+      ]))
 
       const renderers = { tools: renderTools, pairs: renderPairs, time: renderTime, dataset: renderDataset }
       document.getElementById('content').replaceChildren(...renderers[state.tab]())
