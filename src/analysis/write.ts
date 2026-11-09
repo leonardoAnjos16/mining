@@ -1,20 +1,39 @@
 import path from "path"
 import { createCSV } from "../utils/csv.js"
 import { Scenario } from "./load.js"
+import { groupBy } from "./group.js"
 import { getPairs, getRuns, PAIR_METRICS, TOOL_METRICS } from "./metrics.js"
 
-export const writeCounts = (dir: string, scenarios: Scenario[]) => {
-  const projects = [...new Set(scenarios.map(({ project }) => project))].sort()
-  const data = projects.map(project => {
-    const projectScenarios = scenarios.filter(scenario => scenario.project === project)
-    return {
-      project,
-      scenarios: new Set(projectScenarios.map(({ mergeCommit }) => mergeCommit)).size,
-      files: projectScenarios.length
-    }
-  })
+const countScenarios = (scenarios: Scenario[]) => ({
+  scenarios: new Set(scenarios.map(({ project, mergeCommit }) => `${project}##${mergeCommit}`)).size,
+  files: scenarios.length
+})
 
-  createCSV(path.join(dir, 'counts.csv'), ['project', 'scenarios', 'files'], data)
+export const writeCounts = (dir: string, scenarios: Scenario[]) => {
+  const total = countScenarios(scenarios)
+
+  const byProject = Array.from(groupBy(scenarios, ({ project }) => project), ([project, projectScenarios]) => ({
+    project,
+    language: projectScenarios[0].language,
+    ...countScenarios(projectScenarios)
+  })).sort((a, b) => a.language.localeCompare(b.language) || a.project.localeCompare(b.project))
+
+  createCSV(
+    path.join(dir, 'project-counts.csv'),
+    ['project', 'language', 'scenarios', 'files'],
+    [...byProject, { project: 'total', language: '', ...total }]
+  )
+
+  const byLanguage = Array.from(groupBy(scenarios, ({ language }) => language), ([language, languageScenarios]) => ({
+    language,
+    ...countScenarios(languageScenarios)
+  })).sort((a, b) => a.language.localeCompare(b.language))
+
+  createCSV(
+    path.join(dir, 'language-counts.csv'),
+    ['language', 'scenarios', 'files'],
+    [...byLanguage, { language: 'total', ...total }]
+  )
 }
 
 export const writeToolMetrics = (dir: string, scenarios: Scenario[], tools: string[]) => {

@@ -6,19 +6,21 @@ export type Group = {
   scenarios: Scenario[]
 }
 
-const groupBy = (scenarios: Scenario[], getDir: (scenario: Scenario) => string): Group[] => {
-  const groups = new Map<string, Scenario[]>()
-  scenarios.forEach(scenario => {
-    const dir = getDir(scenario)
-    if (!groups.has(dir)) groups.set(dir, [])
-    groups.get(dir)!.push(scenario)
+export const groupBy = <T>(items: T[], getKey: (item: T) => string) => {
+  const groups = new Map<string, T[]>()
+  items.forEach(item => {
+    const key = getKey(item)
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key)!.push(item)
   })
 
-  return Array.from(groups, ([dir, scenarios]) => ({ dir, scenarios }))
+  return groups
 }
+
+const toGroups = (groups: Map<string, Scenario[]>): Group[] => Array.from(groups, ([dir, scenarios]) => ({ dir, scenarios }))
 
 export const groupScenarios = (scenarios: Scenario[], dir: string): Group[] => [
   { dir, scenarios },
-  ...groupBy(scenarios, ({ language }) => path.join(dir, 'languages', language)),
-  ...groupBy(scenarios, ({ project }) => path.join(dir, 'projects', project))
+  ...toGroups(groupBy(scenarios, ({ language }) => path.join(dir, 'languages', language))),
+  ...toGroups(groupBy(scenarios, ({ project }) => path.join(dir, 'projects', project)))
 ]
