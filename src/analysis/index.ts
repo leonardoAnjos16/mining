@@ -6,6 +6,7 @@ import { writeCounts, writePairMetrics, writeToolMetrics } from "./write.js"
 
 type AnalysisOptions = {
   output: string
+  alias?: string
 }
 
 const SUBSETS = [
@@ -17,7 +18,7 @@ const SUBSETS = [
 export const computeMetrics = (resultsPath: string, options: AnalysisOptions) => {
   const scenarios = loadScenarios(resultsPath)
   const tools = [...new Set(scenarios.flatMap(({ tools }) => Object.keys(tools)))].sort()
-  const outputDir = path.resolve(options.output, 'analysis')
+  const outputDir = path.resolve(options.output, 'analysis', options.alias ?? Date.now().toString())
 
   writeCounts(outputDir, scenarios)
 

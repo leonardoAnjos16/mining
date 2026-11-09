@@ -100,6 +100,7 @@ program
   .description('Analyse merge experiment and produce results metrics')
   .argument('<results-path>', 'path to the CSV files containing the results of the merge experiment')
   .option('-o, --output <path>', 'path to the output directory', DEFAULT_OUTPUT_DIR)
+  .option('-a, --alias <alias>', 'name of the directory in which the analysis will be saved')
   .action(computeMetrics)
 
 program.parse()
