@@ -1,7 +1,7 @@
 import * as Plot from '@observablehq/plot'
 import { JSDOM } from 'jsdom'
 import { writeFile } from '../utils/file.js'
-import { ToolResult } from '../experiment.js'
+import { Scenario } from './load.js'
 import path from 'path'
 
 type TimeMeasurement = {
@@ -9,27 +9,29 @@ type TimeMeasurement = {
   mean: number
 }
 
-const computeMeans = (toolResults: ToolResult[]) => {
+const trimmedMean = (values: number[]) => {
+  const sum = values.reduce((total, value) => total + value, 0)
+  return (sum - Math.min(...values) - Math.max(...values)) / (values.length - 2)
+}
+
+const computeMeans = (scenarios: Scenario[]) => {
   const means: TimeMeasurement[] = []
-  toolResults.forEach(({ tool, timeMeasurements }) => {
-    if (timeMeasurements.length <= 2) {
-      console.error(`Could not compute mean for ${tool}`)
-      return
-    }
+  scenarios.forEach(({ tools }) => {
+    Object.entries(tools).forEach(([tool, { timeMeasurements }]) => {
+      if (timeMeasurements.length <= 2) {
+        console.error(`Could not compute mean for ${tool}`)
+        return
+      }
 
-    const sum = timeMeasurements.reduce((p, v) => p + v, 0)
-    const min = Math.min(...timeMeasurements)
-    const max = Math.max(...timeMeasurements)
-
-    const mean = (sum - min - max) / (timeMeasurements.length - 2)
-    means.push({ tool, mean })
+      means.push({ tool, mean: trimmedMean(timeMeasurements) })
+    })
   })
 
   return means
 }
 
-export const createBoxPlot = (toolResults: ToolResult[], outputDir: string) => {
-  const data = computeMeans(toolResults)
+export const createBoxPlot = (scenarios: Scenario[], outputDir: string) => {
+  const data = computeMeans(scenarios)
 
   const { document } = new JSDOM().window
   const plot = Plot.plot({

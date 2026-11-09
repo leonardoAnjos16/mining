@@ -8,20 +8,13 @@ import { dirExists, fileExists } from '../../utils/file.js'
 import { getRepoPath } from './clone.js'
 import { DatasetOptions } from '../index.js'
 import { MergeScenarioFile, Repo } from '../../index.js'
+import { getLanguageExtensions } from '../../utils/language.js'
 
 const name = 'files'
 
-const languageToExtensions = (language: string) => {
-  if (language === 'javascript') return ['.js', '.jsx', '.mjs']
-  if (language === 'java' || language === 'go') return [`.${language}`]
-  if (language === 'rust') return ['.rs']
-
-  return []
-}
-
 const isRelevantFile = (repo: Repo, filepath: string) => {
   if (filepath.startsWith('vendor/')) return false
-  if (!languageToExtensions(repo.language).some(extension => filepath.endsWith(extension))) return false
+  if (!getLanguageExtensions(repo.language).some(extension => filepath.endsWith(extension))) return false
 
   return true
 }
