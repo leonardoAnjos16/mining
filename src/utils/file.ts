@@ -27,3 +27,7 @@ export const appendFile = (filepath: string, content: string) => {
   createDir(path.dirname(filepath))
   fs.appendFileSync(filepath, content)
 }
+
+export const readJSON = <T>(filepath: string): T => JSON.parse(readFile(filepath))
+
+export const writeJSON = (filepath: string, data: unknown) => writeFile(filepath, `${JSON.stringify(data, null, 2)}\n`)

@@ -2,6 +2,21 @@ import { appendFile, readFile, writeFile } from "./file.js"
 
 type Value = string | number | boolean | number[]
 
+export const readCSVRows = (csvFilepath: string, separator: string = ';') => {
+  const [headersRow, ...valuesRows] = readFile(csvFilepath).split(/\r?\n/)
+  const headers = headersRow.split(separator)
+
+  const rows = valuesRows.filter(row => row !== '').map(row => {
+    const values = row.split(separator)
+    if (values.length !== headers.length) {
+      throw new Error('Row is either missing some values or has extra ones')
+    }
+    return values
+  })
+
+  return { headers, rows }
+}
+
 export const parseCSV = <T extends Record<string, Value>>(
   csvFilepath: string,
   transformers: {
@@ -9,31 +24,16 @@ export const parseCSV = <T extends Record<string, Value>>(
   } = {},
   separator: string = ';'
 ): T[] => {
-  const csvContent = readFile(csvFilepath)
+  const { headers, rows } = readCSVRows(csvFilepath, separator)
 
-  const [headersRow, ...valuesRows] = csvContent.split(/\r?\n/)
-  const headers = headersRow.split(separator)
-
-  const parsedCSV: T[] = []
-  valuesRows.forEach(row => {
-    if (row != '') {
-      const parsedRow: Record<string, Value> = {}
-      const values = row.split(separator)
-
-      if (values.length !== headers.length) {
-        throw new Error('Row is either missing some values or has extra ones')
-      }
-
-      headers.forEach((header, index) => {
-        const value = values[index]
-        parsedRow[header] = transformers[header]?.(value) ?? value
-      })
-
-      parsedCSV.push(parsedRow as T)
-    }
+  return rows.map(values => {
+    const parsedRow: Record<string, Value> = {}
+    headers.forEach((header, index) => {
+      const value = values[index]
+      parsedRow[header] = transformers[header]?.(value) ?? value
+    })
+    return parsedRow as T
   })
-
-  return parsedCSV
 }
 
 type Transformers<T> = {

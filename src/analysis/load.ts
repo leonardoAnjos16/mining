@@ -39,6 +39,9 @@ const getResultsFile = (resultsPath: string, filename: string) => {
   return filepath
 }
 
+export const getScenarioKey = ({ project, mergeCommit, filepath }: { project: string, mergeCommit: string, filepath: string }) =>
+  `${project}##${mergeCommit}##${filepath}`
+
 export const loadScenarios = (resultsPath: string): Scenario[] => {
   const toolResults = parseCSV<ToolResult>(getResultsFile(resultsPath, 'tools.csv'), {
     conflicts: Number,
@@ -54,11 +57,9 @@ export const loadScenarios = (resultsPath: string): Scenario[] => {
   })
 
   const scenarios = new Map<string, Scenario>()
-  const getKey = ({ project, mergeCommit, filepath }: { project: string, mergeCommit: string, filepath: string }) =>
-    `${project}##${mergeCommit}##${filepath}`
 
   toolResults.forEach(({ project, mergeCommit, filepath, sameSides, tool, conflicts, fail, timeout, timeMeasurements }) => {
-    const key = getKey({ project, mergeCommit, filepath })
+    const key = getScenarioKey({ project, mergeCommit, filepath })
     if (!scenarios.has(key)) {
       scenarios.set(key, {
         project,
@@ -79,9 +80,9 @@ export const loadScenarios = (resultsPath: string): Scenario[] => {
   })
 
   comparisonResults.forEach(({ tool, otherTool, sameContent, sameNormalizedContent, ...context }) => {
-    const scenario = scenarios.get(getKey(context))
+    const scenario = scenarios.get(getScenarioKey(context))
     if (!scenario?.tools[tool]) {
-      throw new Error(`Missing tool results for ${getKey(context)}`)
+      throw new Error(`Missing tool results for ${getScenarioKey(context)}`)
     }
 
     if (otherTool === 'ground-truth') {

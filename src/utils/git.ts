@@ -34,3 +34,6 @@ export const getModifiedFiles = (repoPath: string, commit: string, baseCommit: s
 export const getFileFromCommit = (repoPath: string, commit: string, filepath: string) => {
   return runCommand('git', ['show', `${commit}:${filepath}`], { cwd: repoPath })
 }
+
+export const diffFiles = (from: string, to: string, contextLines: number) =>
+  runCommand('git', ['diff', '--no-index', '--no-color', `-U${contextLines}`, from, to], { isSuccess: code => code === 0 || code === 1 }) ?? ''
