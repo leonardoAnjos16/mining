@@ -46,14 +46,14 @@ Separate what the files show from your opinion. Keep it short: the user can open
 There are two kinds of labels in `labels.json`, each with `appliesTo`:
 
 - **Behaviour labels** (`"kind": "behavior"`): why a tool produced its output. `appliesTo` lists tool states: `conflict`, `clean-equal`, `clean-different`. Every focus tool gets one or more, including tools that simply merged cleanly: one per kind of conflict block or per kind of difference, or a single label for how a clean tool handled the changes.
-- **Outcome labels** (`"kind": "outcome"`): why the case is in a group, such as "the developer edited during the merge" or "B's choice happened to match the merge commit". `appliesTo` lists metrics: `afp`, `afn`, `clean-different`. Every group in `groups` gets exactly one: the main reason. Secondary reasons go in its note.
+- **Outcome labels** (`"kind": "outcome"`): why the case is in a group, such as "the developer edited during the merge" or "B's choice happened to match the merge commit". `appliesTo` lists metrics: `afp`, `afn`, `clean-different`. Every group in `groups` gets one or more, main reason first: one per distinct reason the case is in the group.
 
 For each label:
 
 - Prefer an existing label whose rule holds and whose `appliesTo` includes the tool's `state` (behaviour) or the group's metric, the part of the group id before the first `/` (outcome).
 - When none fits, propose a new label: an `id` (lowercase words joined by hyphens), its `kind`, `appliesTo`, a short `name`, a `rule` that can be checked against the case files, and a one-line `example`. Make the rule general enough to apply to other cases, not just this one.
 
-Ask the user with AskUserQuestion: one question per focus tool for its behaviour labels, then one per group for its outcome label (several questions can go in one call). Put your proposal first and reasonable alternatives (other existing labels, or a differently scoped new label) after it. The user can also answer with their own label or edits. Repeat until every tool and group has approved labels.
+Ask the user with AskUserQuestion: one question per focus tool for its behaviour labels, then one per group for its outcome labels (several questions can go in one call). Put your proposal first and reasonable alternatives (other existing labels, or a differently scoped new label) after it. The user can also answer with their own label or edits. Repeat until every tool and group has approved labels.
 
 Then show the summaries and notes you will write (step 5) and ask the user to approve or edit them, unless they said approving the labels is enough.
 
@@ -77,7 +77,7 @@ Then show the summaries and notes you will write (step 5) and ask the user to ap
     "<focus tool>": { "labels": ["<behaviour label id>"], "note": "…" }
   },
   "groups": {
-    "<group id>": { "label": "<outcome label id>", "note": "…" }
+    "<group id>": { "labels": ["<outcome label id>"], "note": "…" }
   },
   "annotator": "<your model id>",
   "date": "<YYYY-MM-DD>",
@@ -97,6 +97,6 @@ Report what was written (labels used and new labels added), then ask whether to 
 
 When the user asks to rename, merge, split, reword or remove a label:
 
-1. Find the annotations that use it: `grep -l '"<label id>"' <output>/annotations/*.json`. Behaviour labels appear in `tools.*.labels`, outcome labels in `groups.*.label`.
+1. Find the annotations that use it: `grep -l '"<label id>"' <output>/annotations/*.json`. Behaviour labels appear in `tools.*.labels`, outcome labels in `groups.*.labels`.
 2. Show the user the change and the affected cases, and apply it only after approval: update `labels.json`, then update the affected annotations, going through each affected case with the user for a split.
 3. Run `analysis check` until it succeeds.

@@ -13,11 +13,11 @@ export const GroupView = ({ group }: { group: CaseGroup }) => {
   const annotated = groupCases.filter(info => getOutcome(info, group.id))
 
   const labelCounts = cases.labels
-    .map(label => ({ label, count: annotated.filter(info => getOutcome(info, group.id)?.label === label.id).length }))
+    .map(label => ({ label, count: annotated.filter(info => getOutcome(info, group.id)?.labels.includes(label.id)).length }))
     .filter(({ count }) => count > 0)
     .sort((a, b) => b.count - a.count)
 
-  const shown = state.label ? groupCases.filter(info => getOutcome(info, group.id)?.label === state.label) : groupCases
+  const shown = state.label ? groupCases.filter(info => getOutcome(info, group.id)?.labels.includes(state.label)) : groupCases
 
   return <>
     <p className="description">
@@ -27,7 +27,7 @@ export const GroupView = ({ group }: { group: CaseGroup }) => {
     {annotated.length === 0
       ? <p className="description">No annotations yet: run the annotate-cases skill.</p>
       : <div>
-        <p className="description">Each annotated case has one outcome label for this group: why it is in it. Click a label to filter the cases; click ? for its definition, or the ? button at the bottom right for all of them.</p>
+        <p className="description">Each annotated case has one or more outcome labels for this group: why it is in it. A case can have several, so percentages can add up to more than 100%. Click a label to filter the cases; click ? for its definition, or the ? button at the bottom right for all of them.</p>
         <table>
           <thead><tr><th>label</th><th>cases</th><th>% of annotated</th></tr></thead>
           <tbody>
@@ -53,7 +53,7 @@ export const GroupView = ({ group }: { group: CaseGroup }) => {
                 <td>{info.project}</td>
                 <td className="text">{info.filepath}</td>
                 <td><Badge className={`status-${info.status}`}>{info.status}</Badge></td>
-                <LabelsCell labels={outcome ? [outcome.label] : []} />
+                <LabelsCell labels={outcome?.labels ?? []} />
                 <td className="text">{outcome?.note ?? ''}</td>
               </tr>
             )

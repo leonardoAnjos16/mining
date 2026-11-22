@@ -87,7 +87,7 @@ export const Outcomes = ({ info, currentGroup }: { info: CaseSummary, currentGro
             return (
               <tr key={group.id} className={group.id === currentGroup?.id ? 'selected' : ''}>
                 <td>{groupTitle(group)}</td>
-                <td>{outcome ? <div className="card-labels"><LabelPill id={outcome.label} /></div> : <span className="description">not annotated</span>}</td>
+                <td>{outcome ? <div className="card-labels">{outcome.labels.map(label => <LabelPill key={label} id={label} />)}</div> : <span className="description">not annotated</span>}</td>
                 <td>{outcome && (
                   <PopoverButton popoverKey={`outcome/${info.id}/${group.id}`} title="Show the note" className="note-toggle"
                     content={() => <><strong>{groupTitle(group)}</strong><p>{outcome.note}</p></>}>Note</PopoverButton>

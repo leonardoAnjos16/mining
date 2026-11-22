@@ -71,7 +71,7 @@ export type Annotation = {
   hashes: Hashes
   summary: { left: string, right: string, merge: string }
   tools: Record<string, { labels: string[], note: string }>
-  groups: Record<string, { label: string, note: string }>
+  groups: Record<string, { labels: string[], note: string }>
   annotator: string
   date: string
   reviewed?: boolean

@@ -90,7 +90,7 @@ export const CaseGrids = ({ info, group }: { info: CaseSummary, group?: CaseGrou
 
     <div className="case-section">
       <h3>Left, base and right</h3>
-      <p className="description">Unchanged lines are aligned. Yellow base lines were changed by one side, purple ones by both sides; green lines are a side's changes. Long unchanged runs are collapsed.</p>
+      <p className="description">Aligned as diff3 sees the files: rows outside a changed chunk are unchanged lines, and inside a chunk each column lists its lines top to bottom. Base lines in a chunk are yellow when one side changed it, purple when both did; green lines are a side's own changes. Long unchanged runs are collapsed.</p>
       <AlignedGrid rows={data.aligned} language={info.language} headers={[
         { main: 'Left', action: summaryButton('left', 'Left') },
         { main: 'Base' },
@@ -100,7 +100,7 @@ export const CaseGrids = ({ info, group }: { info: CaseSummary, group?: CaseGrou
 
     <div className="case-section">
       <h3>Base and merge commit</h3>
-      <p className="description">Yellow base lines were changed in the merge commit, green lines are what the merge commit has instead.</p>
+      <p className="description">Red base lines were removed or replaced in the merge commit, green lines are what the merge commit has instead.</p>
       <AlignedGrid rows={data.merge} language={info.language} layout={MERGE_LAYOUT} headers={[
         { main: 'Base' },
         { main: 'Merge commit', action: summaryButton('merge', 'Merge commit') }

@@ -4,11 +4,11 @@ import { CASE_METRICS, OVERVIEW_DESCRIPTIONS } from '../constants'
 import { useApp, useCases } from '../context'
 import { getOutcome, pairTitle, withPercentage } from '../helpers'
 
-type Entry = { info: CaseSummary, group: CaseGroup, label: string, note: string }
+type Entry = { info: CaseSummary, group: CaseGroup, labels: string[], note: string }
 
 const getEntries = (groups: CaseGroup[], cases: Record<string, CaseSummary>): Entry[] => groups.flatMap(group => group.cases.flatMap(id => {
   const outcome = getOutcome(cases[id], group.id)
-  return outcome ? [{ info: cases[id], group, label: outcome.label, note: outcome.note }] : []
+  return outcome ? [{ info: cases[id], group, labels: outcome.labels, note: outcome.note }] : []
 }))
 
 const MetricTable = ({ metric, groups, overviewTool }: { metric: Metric, groups: CaseGroup[], overviewTool: string }) => {
@@ -27,9 +27,9 @@ const MetricTable = ({ metric, groups, overviewTool }: { metric: Metric, groups:
   ).map(column => ({ ...column, entries: getEntries(column.groups, cases.cases) }))
 
   const entries = getEntries(columns.flatMap(column => column.groups), cases.cases)
-  const countIn = (list: Entry[], label: Label) => list.filter(entry => entry.label === label.id).length
+  const countIn = (list: Entry[], label: Label) => list.filter(entry => entry.labels.includes(label.id)).length
   const labels = cases.labels.filter(label => countIn(entries, label) > 0).sort((a, b) => countIn(entries, b) - countIn(entries, a))
-  const shown = selectedMetric === metric ? entries.filter(entry => entry.label === selectedLabel) : []
+  const shown = selectedMetric === metric ? entries.filter(entry => entry.labels.includes(selectedLabel)) : []
 
   return <>
     <h2>{CASE_METRICS[metric].name}</h2>
@@ -66,12 +66,12 @@ const MetricTable = ({ metric, groups, overviewTool }: { metric: Metric, groups:
         <table>
           <thead><tr>{['project', 'file', 'group', 'outcome', 'note'].map(header => <th key={header}>{header}</th>)}</tr></thead>
           <tbody>
-            {shown.map(({ info, group, label, note }) => (
+            {shown.map(({ info, group, labels, note }) => (
               <tr key={`${info.id}/${group.id}`} className="clickable" onClick={() => update({ case: info.id, outputLeft: group.tool, outputRight: group.otherTool ?? '' })}>
                 <td>{info.project}</td>
                 <td className="text">{info.filepath}</td>
                 <td>{pairTitle(group)}</td>
-                <LabelsCell labels={[label]} />
+                <LabelsCell labels={labels} />
                 <td className="text">{note}</td>
               </tr>
             ))}
@@ -87,7 +87,7 @@ export const Overview = ({ groups, overviewTool }: { groups: CaseGroup[], overvi
   return <>
     <p className="description">
       {summaries.filter(info => info.annotation).length} of {summaries.length} selected cases annotated. Tables count outcome labels: why each case is in its group.
-      A case has one outcome per group, so each column adds up to 100%; a case in several groups of a column counts once per group.
+      A case can have several outcome labels per group, so a column can add up to more than 100%; a case in several groups of a column counts once per group.
       Click a label to list its cases; click ? for its definition, or the ? button at the bottom right for all of them.
     </p>
     {(Object.keys(CASE_METRICS) as Metric[]).map(metric => <MetricTable key={metric} metric={metric} groups={groups} overviewTool={overviewTool} />)}

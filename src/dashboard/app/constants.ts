@@ -63,6 +63,6 @@ export const STATES: Record<ToolState, string> = {
 }
 
 export const LABEL_KINDS = {
-  'outcome': { title: 'Outcome labels', description: 'Why a case is in a group: one per case and group.', appliesName: (value: string) => CASE_METRICS[value as Metric]?.name ?? value },
+  'outcome': { title: 'Outcome labels', description: 'Why a case is in a group: one or more per case and group, main reason first.', appliesName: (value: string) => CASE_METRICS[value as Metric]?.name ?? value },
   'behavior': { title: 'Behaviour labels', description: 'Why a tool produced its output: one or more per tool in a case.', appliesName: (value: string) => STATES[value as ToolState] ?? value }
 } as const

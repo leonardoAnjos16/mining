@@ -50,5 +50,110 @@
     "name": "Compatible at syntax level",
     "rule": "A conflicts on textual overlap, but the sides' changes don't conflict at the syntax level (identical changes, or changes to different elements), so B merges them and matches the merge commit by design.",
     "example": "Both sides rename the same import and one side also reformats it; A conflicts, B keeps the rename and the reformatting."
+  },
+  {
+    "id": "resolved-at-token-level",
+    "kind": "behavior",
+    "appliesTo": [
+      "clean-equal",
+      "clean-different"
+    ],
+    "name": "Resolved at token level",
+    "rule": "Splitting lines at separators puts the sides' edits into different tokens or makes them identical, so the token-level merge combines them without conflict.",
+    "example": "Both sides rename an imported identifier and one side also changes the import path on that line; the tool keeps both."
+  },
+  {
+    "id": "adjacent-changes",
+    "kind": "behavior",
+    "appliesTo": [
+      "conflict"
+    ],
+    "name": "Adjacent changes",
+    "rule": "The sides changed or inserted at adjacent but non-overlapping places, and the line-based merge groups them into one conflict.",
+    "example": "One side appends an entry right after the lines the other side edited."
+  },
+  {
+    "id": "adjacent-not-overlapping",
+    "kind": "outcome",
+    "appliesTo": [
+      "afp"
+    ],
+    "name": "Adjacent, not overlapping",
+    "rule": "A conflicts because the sides' changes are adjacent, though they don't overlap; B separates them and matches the merge commit by design.",
+    "example": "One side translates the last entries of a list, the other appends a new entry after them."
+  },
+  {
+    "id": "same-position-insertions",
+    "kind": "behavior",
+    "appliesTo": [
+      "conflict"
+    ],
+    "name": "Same-position insertions",
+    "rule": "Both sides inserted different lines at the same base position, so a line-based merge can't order them and reports a conflict.",
+    "example": "Each side adds a different import, or a different method, at the same place."
+  },
+  {
+    "id": "insertion-order-differs",
+    "kind": "behavior",
+    "appliesTo": [
+      "clean-different"
+    ],
+    "name": "Insertion order differs",
+    "rule": "The tool keeps both sides' insertions at the same position but orders them differently from the merge commit.",
+    "example": "Left's new method comes before right's, while the merge commit has right's first."
+  },
+  {
+    "id": "insertion-order-only",
+    "kind": "outcome",
+    "appliesTo": [
+      "afn",
+      "clean-different"
+    ],
+    "name": "Insertion order only",
+    "rule": "A keeps both sides' insertions but in a different order than the merge commit, which is otherwise identical; the difference doesn't change behaviour.",
+    "example": "Two new imports or methods appear in the opposite order."
+  },
+  {
+    "id": "committed-conflict-markers",
+    "kind": "outcome",
+    "appliesTo": [
+      "afn",
+      "clean-different"
+    ],
+    "name": "Committed conflict markers",
+    "rule": "The merge commit contains unresolved conflict markers, so it isn't a valid resolution and no clean output can match it.",
+    "example": "`<<<<<<< HEAD` \u2026 `>>>>>>> master` left around two require lines."
+  },
+  {
+    "id": "developer-dropped-change",
+    "kind": "outcome",
+    "appliesTo": [
+      "afn",
+      "clean-different"
+    ],
+    "name": "Developer dropped a change",
+    "rule": "The merge commit leaves out a change from one side that A keeps, so A's difference from it isn't a tool error.",
+    "example": "The merge commit keeps the old `<span>` label where right rendered `{children}`; A keeps right's change."
+  },
+  {
+    "id": "whitespace-only-conflict",
+    "kind": "behavior",
+    "appliesTo": [
+      "conflict"
+    ],
+    "name": "Whitespace-only conflict",
+    "rule": "The sides of the conflict block differ only in whitespace (fact: sidesEqualIgnoringWhitespace), so a line-based merge conflicts on equivalent text.",
+    "example": "`int updateCount=0;` against `int updateCount = 0;`."
+  },
+  {
+    "id": "edits-made-in-merge",
+    "kind": "outcome",
+    "appliesTo": [
+      "afn",
+      "clean-different"
+    ],
+    "name": "Edits made in the merge",
+    "rule": "The merge commit contains changes neither side made (lines added, removed or changed), so A's output, which combines the sides, differs from it.",
+    "example": "The developer deletes a comment that both sides kept."
   }
 ]

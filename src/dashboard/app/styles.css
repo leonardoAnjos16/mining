@@ -54,6 +54,7 @@ table.aligned td.number { width: 44px; color: #8c959f; text-align: right; user-s
 table.aligned col.number { width: 52px; }
 table.aligned td.changed-base { background: #fff8c5; }
 table.aligned td.changed-side { background: #dafbe1; }
+table.aligned td.changed-removed { background: #ffebe9; }
 table.aligned td.changed-both { background: #e8d5ff; }
 table.aligned td.absent { background: repeating-linear-gradient(135deg, #f6f8fa 0 6px, #eaeef2 6px 8px); }
 table.aligned td.gap { text-align: center; color: #59636e; background: #f6f8fa; border-top: 1px solid #d0d7de; border-bottom: 1px solid #d0d7de; }

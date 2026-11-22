@@ -11,7 +11,7 @@ export const SIDES_LAYOUT: Column[] = [
 ]
 
 export const MERGE_LAYOUT: Column[] = [
-  { index: 0, changedClass: 'changed-base' },
+  { index: 0, changedClass: 'changed-removed' },
   { index: 1, changedClass: 'changed-side' }
 ]
 

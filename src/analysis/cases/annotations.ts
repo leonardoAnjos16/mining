@@ -59,11 +59,12 @@ const validateAnnotation = (info: CaseInfo, annotation: Annotation, labels: Labe
     if (new Set(toolLabels).size !== toolLabels.length) errors.push(`tools.${tool}.labels has duplicates`)
   })
 
-  Object.entries(annotation.groups ?? {}).forEach(([group, { label, note }]) => {
+  Object.entries(annotation.groups ?? {}).forEach(([group, { labels: groupLabels, note }]) => {
     if (!info.groups.includes(group)) return errors.push(`groups.${group} is not a group of this case`)
     if (!isText(note)) errors.push(`groups.${group}.note is missing`)
-    if (!isText(label)) return errors.push(`groups.${group}.label is missing`)
-    checkLabel(label, 'outcome', group.split('/')[0], `groups.${group}`)
+    if (!Array.isArray(groupLabels) || groupLabels.length === 0) return errors.push(`groups.${group}.labels is empty`)
+    groupLabels.forEach(id => checkLabel(id, 'outcome', group.split('/')[0], `groups.${group}`))
+    if (new Set(groupLabels).size !== groupLabels.length) errors.push(`groups.${group}.labels has duplicates`)
   })
 
   return errors

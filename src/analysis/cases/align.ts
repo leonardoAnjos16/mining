@@ -1,113 +1,112 @@
 import { readFile } from '../../utils/file.js'
 import { diffFiles } from '../../utils/git.js'
+import { runCommand } from '../../utils/process.js'
 import { AlignedCell, AlignedRow, Change } from './types.js'
 
 const CONTEXT = 3
 const MAX_ROWS = 3000
 
-type Hunk = { baseStart: number, baseCount: number, sideStart: number, sideCount: number }
+const FILES = ['left', 'base', 'right'] as const
 
-const getHunks = (basePath: string, sidePath: string): Hunk[] =>
-  Array.from(diffFiles(basePath, sidePath, 0).matchAll(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/gm), match => {
-    const baseCount = match[2] === undefined ? 1 : Number(match[2])
-    const sideCount = match[4] === undefined ? 1 : Number(match[4])
-    return {
-      baseStart: baseCount === 0 ? Number(match[1]) : Number(match[1]) - 1,
-      baseCount,
-      sideStart: sideCount === 0 ? Number(match[3]) : Number(match[3]) - 1,
-      sideCount
-    }
-  })
+type FileName = (typeof FILES)[number]
 
-const getRegions = (hunks: Hunk[]) => {
-  const intervals = hunks.map(({ baseStart, baseCount }) => [baseStart, baseStart + baseCount]).sort((a, b) => a[0] - b[0] || a[1] - b[1])
-  const regions: number[][] = []
+type Range = { start: number, count: number }
 
-  intervals.forEach(([start, end]) => {
-    const last = regions[regions.length - 1]
-    if (last && start <= last[1]) last[1] = Math.max(last[1], end)
-    else regions.push([start, end])
-  })
+type Chunk = Record<FileName, Range> & { change: Change }
 
-  return regions
-}
-
-const toSide = (hunks: Hunk[], position: number, includeInsertionsAt: boolean) => position + hunks
-  .filter(({ baseStart, baseCount }) => baseStart + baseCount <= position && (includeInsertionsAt || baseStart < position))
-  .reduce((total, { baseCount, sideCount }) => total + sideCount - baseCount, 0)
-
-const getSideRange = (hunks: Hunk[], start: number, end: number) => {
-  const inside = hunks.filter(({ baseStart, baseCount }) => baseStart >= start && baseStart + baseCount <= end)
-  const sideStart = toSide(hunks, start, false)
-  const sideEnd = sideStart + (end - start) + inside.reduce((total, { baseCount, sideCount }) => total + sideCount - baseCount, 0)
-
-  const changed = new Set(inside.flatMap(({ sideStart, sideCount }) => Array.from({ length: sideCount }, (_, index) => sideStart + index)))
-  return { sideStart, sideEnd, changed }
-}
+const CHUNK_CHANGES: Record<string, Change> = { '': 'both', '1': 'changed', '2': 'both', '3': 'changed' }
 
 const splitLines = (content: string) => {
   const lines = content.split(/\r?\n/)
   return lines[lines.length - 1] === '' ? lines.slice(0, -1) : lines
 }
 
-export const alignSides = (paths: { base: string, left: string, right: string }) => {
-  const lines = { base: splitLines(readFile(paths.base)), left: splitLines(readFile(paths.left)), right: splitLines(readFile(paths.right)) }
-  const hunks = { left: getHunks(paths.base, paths.left), right: getHunks(paths.base, paths.right) }
-  const regions = getRegions([...hunks.left, ...hunks.right])
+const parseRange = (first: string, last: string | undefined, type: string): Range => type === 'a'
+  ? { start: Number(first), count: 0 }
+  : { start: Number(first) - 1, count: Number(last ?? first) - Number(first) + 1 }
 
-  const changedLines = (sideHunks: Hunk[]) => new Set(sideHunks.flatMap(({ baseStart, baseCount }) => Array.from({ length: baseCount }, (_, index) => baseStart + index)))
-  const changedByLeft = changedLines(hunks.left)
-  const changedByRight = changedLines(hunks.right)
-  const baseChange = (index: number): Change => changedByLeft.has(index) && changedByRight.has(index)
-    ? 'both'
-    : changedByLeft.has(index) || changedByRight.has(index) ? 'changed' : 'same'
+const getChunks = (paths: Record<FileName, string>): Chunk[] => {
+  const output = runCommand('diff3', [paths.left, paths.base, paths.right], { isSuccess: code => code === 0 || code === 1 }) ?? ''
+  const chunks: Partial<Chunk>[] = []
+
+  output.split('\n').forEach(line => {
+    const header = line.match(/^====([123]?)$/)
+    if (header) {
+      chunks.push({ change: CHUNK_CHANGES[header[1]] })
+      return
+    }
+
+    const range = line.match(/^([123]):(\d+)(?:,(\d+))?([ac])$/)
+    if (range && chunks.length > 0) {
+      const [, file, first, last, type] = range
+      chunks[chunks.length - 1][FILES[Number(file) - 1]] = parseRange(first, last, type)
+    }
+  })
+
+  return chunks as Chunk[]
+}
+
+const getChangedSideLines = (basePath: string, sidePath: string) => {
+  const changed = new Set<number>()
+  const hunks = diffFiles(basePath, sidePath, 0).matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)
+
+  for (const [, first, count] of hunks) {
+    for (let offset = 0; offset < Number(count ?? 1); offset++) changed.add(Number(first) - 1 + offset)
+  }
+
+  return changed
+}
+
+export const alignFiles = (paths: Record<FileName, string>): AlignedRow[] => {
+  const lines = { left: splitLines(readFile(paths.left)), base: splitLines(readFile(paths.base)), right: splitLines(readFile(paths.right)) }
+  const position = { left: 0, base: 0, right: 0 }
   const rows: AlignedRow[] = []
 
-  const cell = (side: 'base' | 'left' | 'right', index: number, change: Change): AlignedCell => [index + 1, lines[side][index], change]
-  const sideChange = (changed: boolean): Change => changed ? 'changed' : 'same'
+  const changedLeftLines = getChangedSideLines(paths.base, paths.left)
+  const changedRightLines = getChangedSideLines(paths.base, paths.right)
+  const sideChange = (changed: Set<number>, index: number): Change => changed.has(index) ? 'changed' : 'same'
 
-  const pushUnchanged = (from: number, to: number, isFirst: boolean, isLast: boolean) => {
-    const show = (index: number) => rows.push([
-      cell('base', index, 'same'),
-      cell('left', toSide(hunks.left, index, true), 'same'),
-      cell('right', toSide(hunks.right, index, true), 'same')
+  const cell = (file: FileName, index: number, change: Change): AlignedCell => [index + 1, lines[file][index], change]
+
+  const pushUnchanged = (count: number, isFirst: boolean, isLast: boolean) => {
+    const show = (offset: number) => rows.push([
+      cell('base', position.base + offset, 'same'),
+      cell('left', position.left + offset, 'same'),
+      cell('right', position.right + offset, 'same')
     ])
 
     const head = isFirst ? 0 : CONTEXT
     const tail = isLast ? 0 : CONTEXT
-    if (to - from <= head + tail + 1) {
-      for (let index = from; index < to; index++) show(index)
-      return
+    if (count <= head + tail + 1) {
+      for (let offset = 0; offset < count; offset++) show(offset)
+    } else {
+      for (let offset = 0; offset < head; offset++) show(offset)
+      rows.push(['gap', count - head - tail])
+      for (let offset = count - tail; offset < count; offset++) show(offset)
     }
 
-    for (let index = from; index < from + head; index++) show(index)
-    rows.push(['gap', to - from - head - tail])
-    for (let index = to - tail; index < to; index++) show(index)
+    FILES.forEach(file => { position[file] += count })
   }
 
-  let position = 0
-  regions.forEach(([start, end], regionIndex) => {
-    pushUnchanged(position, start, regionIndex === 0, false)
+  const chunks = getChunks(paths)
+  chunks.forEach((chunk, index) => {
+    pushUnchanged(chunk.base.start - position.base, index === 0, false)
 
-    const left = getSideRange(hunks.left, start, end)
-    const right = getSideRange(hunks.right, start, end)
-    const height = Math.max(end - start, left.sideEnd - left.sideStart, right.sideEnd - right.sideStart)
-
+    const { left, base, right } = chunk
+    const height = Math.max(left.count, base.count, right.count)
     for (let offset = 0; offset < height; offset++) {
-      const baseIndex = start + offset
-      const leftIndex = left.sideStart + offset
-      const rightIndex = right.sideStart + offset
+      const [baseIndex, leftIndex, rightIndex] = [base.start + offset, left.start + offset, right.start + offset]
       rows.push([
-        baseIndex < end ? cell('base', baseIndex, baseChange(baseIndex)) : null,
-        leftIndex < left.sideEnd ? cell('left', leftIndex, sideChange(left.changed.has(leftIndex))) : null,
-        rightIndex < right.sideEnd ? cell('right', rightIndex, sideChange(right.changed.has(rightIndex))) : null
+        offset < base.count ? cell('base', baseIndex, chunk.change) : null,
+        offset < left.count ? cell('left', leftIndex, sideChange(changedLeftLines, leftIndex)) : null,
+        offset < right.count ? cell('right', rightIndex, sideChange(changedRightLines, rightIndex)) : null
       ])
     }
 
-    position = end
+    FILES.forEach(file => { position[file] = chunk[file].start + chunk[file].count })
   })
 
-  pushUnchanged(position, lines.base.length, regions.length === 0, true)
+  pushUnchanged(lines.base.length - position.base, chunks.length === 0, true)
 
   return rows.length > MAX_ROWS ? [...rows.slice(0, MAX_ROWS), ['gap', rows.length - MAX_ROWS] satisfies AlignedRow] : rows
 }

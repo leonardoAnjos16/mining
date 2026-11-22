@@ -3,7 +3,7 @@ import { fileExists, getExtension, readFile, readJSON, removeDir, writeFile, wri
 import { getBaseCommit, getParentCommits } from '../../utils/git.js'
 import { createFileRevision, runTools } from '../../merge.js'
 import { getScenarioKey, loadScenarios, Scenario } from '../load.js'
-import { alignSides } from './align.js'
+import { alignFiles } from './align.js'
 import { checkCases } from './check.js'
 import { countMergeOnlyLines, formatConflicts, formatDiff, getToolFacts, hash, Revisions } from './facts.js'
 import { getAnalysisDir, getCaseDir, getSelectionPath } from './paths.js'
@@ -69,11 +69,11 @@ const writeCaseText = (caseDir: string, scenario: Scenario, files: Record<string
 
 const writeCaseData = (caseDir: string, files: Record<string, string>, tools: string[]) => {
   const data: CaseData = {
-    aligned: alignSides({ base: files.base, left: files.left, right: files.right }),
-    merge: alignSides({ base: files.base, left: files.merge, right: files.merge }),
+    aligned: alignFiles({ base: files.base, left: files.left, right: files.right }),
+    merge: alignFiles({ base: files.base, left: files.merge, right: files.merge }),
     outputs: Object.fromEntries(getPairs(tools).map(([tool, otherTool]) => [
       `${tool}|${otherTool}`,
-      alignSides({ base: files.merge, left: files[tool], right: files[otherTool] })
+      alignFiles({ base: files.merge, left: files[tool], right: files[otherTool] })
     ]))
   }
   writeFile(path.join(caseDir, 'data.json'), JSON.stringify(data))
