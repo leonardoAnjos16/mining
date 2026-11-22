@@ -38,27 +38,28 @@ const getCandidates = (scenarios: Scenario[], tools: string[]) => {
   return groups
 }
 
-const interleaveProjects = (scenarios: Scenario[]) => {
-  const byProject = Array.from(groupBy(scenarios, ({ project }) => project).values())
-  const longest = Math.max(0, ...byProject.map(projectScenarios => projectScenarios.length))
-  return Array.from({ length: longest }, (_, index) => byProject.flatMap(projectScenarios => projectScenarios[index] ?? []))
-    .flat()
+const interleave = <T>(lists: T[][]) => {
+  const longest = Math.max(0, ...lists.map(list => list.length))
+  return Array.from({ length: longest }, (_, index) => lists.flatMap(list => list[index] ?? [])).flat()
 }
 
-export const selectCases = (scenarios: Scenario[], tools: string[], perGroup: number, seed: number, isAnnotated: (id: string) => boolean) => {
+const splitBy = (scenarios: Scenario[], getKey: (scenario: Scenario) => string) =>
+  Array.from(groupBy(scenarios, getKey).values())
+
+const balanceLanguagesAndProjects = (scenarios: Scenario[]) => interleave(
+  splitBy(scenarios, ({ language }) => language).map(languageScenarios => interleave(splitBy(languageScenarios, ({ project }) => project)))
+)
+
+export const selectCases = (scenarios: Scenario[], tools: string[], perGroup: number, seed: number) => {
   const comparable = scenarios.filter(({ comparable }) => comparable)
 
   return getCandidates(comparable, tools).map(({ group, scenarios }) => {
     const sorted = [...scenarios].sort((a, b) => getScenarioKey(a).localeCompare(getScenarioKey(b)))
-    const ordered = interleaveProjects(shuffle(sorted, seed))
-    const annotatedFirst = [
-      ...ordered.filter(scenario => isAnnotated(getCaseId(scenario))),
-      ...ordered.filter(scenario => !isAnnotated(getCaseId(scenario)))
-    ]
+    const selected = balanceLanguagesAndProjects(shuffle(sorted, seed)).slice(0, perGroup)
 
     return {
-      group: { ...group, total: scenarios.length, cases: annotatedFirst.slice(0, perGroup).map(getCaseId) } as CaseGroup,
-      selected: annotatedFirst.slice(0, perGroup)
+      group: { ...group, total: scenarios.length, cases: selected.map(getCaseId) } as CaseGroup,
+      selected
     }
   })
 }

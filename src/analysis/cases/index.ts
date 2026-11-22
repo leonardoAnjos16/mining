@@ -4,10 +4,9 @@ import { getBaseCommit, getParentCommits } from '../../utils/git.js'
 import { createFileRevision, runTools } from '../../merge.js'
 import { getScenarioKey, loadScenarios, Scenario } from '../load.js'
 import { alignSides } from './align.js'
-import { listAnnotationIds } from './annotations.js'
 import { checkCases } from './check.js'
 import { countMergeOnlyLines, formatConflicts, formatDiff, getToolFacts, hash, Revisions } from './facts.js'
-import { getAnalysisDir, getAnnotationsDir, getCaseDir, getSelectionPath } from './paths.js'
+import { getAnalysisDir, getCaseDir, getSelectionPath } from './paths.js'
 import { getCaseId, getRecordedState, selectCases } from './select.js'
 import { CaseData, CaseInfo, Selection } from './types.js'
 
@@ -141,8 +140,7 @@ export const runCases = (resultsPath: string, projectsPath: string, options: Cas
   const tools = [...new Set(scenarios.flatMap(({ tools }) => Object.keys(tools)))].sort()
 
   const analysisDir = getAnalysisDir(options.output, options.alias)
-  const annotated = listAnnotationIds(getAnnotationsDir(options.output))
-  const selections = selectCases(scenarios, tools, options.perGroup, options.seed, id => annotated.has(id))
+  const selections = selectCases(scenarios, tools, options.perGroup, options.seed)
   const selected = groupSelectedCases(selections)
 
   console.log(`Selected ${selected.size} cases in ${selections.length} groups`)

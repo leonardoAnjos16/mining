@@ -1,6 +1,5 @@
-import fs from 'fs'
 import path from 'path'
-import { dirExists, fileExists, readJSON } from '../../utils/file.js'
+import { fileExists, readJSON } from '../../utils/file.js'
 import { loadLabels } from './labels.js'
 import { getAnnotationPath, getCaseDir, getSelectionPath } from './paths.js'
 import { Annotation, BEHAVIOR_STATES, CaseInfo, CasesData, CaseStatus, CaseSummary, Label, OUTCOME_METRICS, Selection } from './types.js'
@@ -129,9 +128,3 @@ export const getCaseErrors = ({ labelErrors, cases, annotationsPath }: CasesData
   ...labelErrors.map(error => `labels: ${error}`),
   ...Object.values(cases).flatMap(({ id, errors }) => errors.map(error => `${path.join(annotationsPath, `${id}.json`)}: ${error}`))
 ]
-
-export const listAnnotationIds = (annotationsDir: string) => new Set(
-  dirExists(annotationsDir)
-    ? fs.readdirSync(annotationsDir).filter(file => file.endsWith('.json')).map(file => file.replace(/\.json$/, ''))
-    : []
-)
