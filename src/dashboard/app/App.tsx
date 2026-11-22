@@ -54,6 +54,8 @@ export const App = () => {
   const context = { state: { ...state, tab, scope }, update, hidden, toggleHidden, analysis: analysis.data, cases: cases.data }
   const scopeDisabled = tab === 'cases' || tab === 'dataset'
   const Tab = TAB_COMPONENTS[tab]
+  const tools = (tables['all/tools.csv']?.rows ?? []).map(row => String(row[0])).filter(name => name !== 'total')
+  const hiddenOthers = Array.from(hidden).filter(name => !tools.includes(name))
 
   return (
     <AppContext.Provider value={context}>
@@ -75,11 +77,19 @@ export const App = () => {
           <nav id="tabs">
             {Object.entries(TABS).map(([name, label]) => <button key={name} className={name === tab ? 'active' : ''} onClick={() => update({ tab: name })}>{label}</button>)}
           </nav>
-          {hidden.size > 0 && (
+          {tools.length > 0 && (
+            <div className="tool-toggles">
+              Tools
+              {tools.map(tool => (
+                <button key={tool} className={`tool-toggle ${hidden.has(tool) ? 'off' : ''}`} title={hidden.has(tool) ? `Show ${tool}` : `Hide ${tool}`} onClick={() => toggleHidden(tool)}>{tool}</button>
+              ))}
+            </div>
+          )}
+          {hiddenOthers.length > 0 && (
             <div id="hidden">
               Hidden
-              {Array.from(hidden).map(name => <button key={name} title={`Show ${name}`} onClick={() => toggleHidden(name)}>{name} ×</button>)}
-              <button onClick={() => update({ hidden: '' })}>Show all</button>
+              {hiddenOthers.map(name => <button key={name} title={`Show ${name}`} onClick={() => toggleHidden(name)}>{name} ×</button>)}
+              <button onClick={() => update({ hidden: Array.from(hidden).filter(name => tools.includes(name)).join(',') })}>Show all</button>
             </div>
           )}
         </header>

@@ -7,6 +7,7 @@ export const DEFAULTS = {
   metric: 'afp',
   percentage: '1',
   time: 'trimmed',
+  scale: 'log',
   hidden: '',
   group: '',
   label: '',

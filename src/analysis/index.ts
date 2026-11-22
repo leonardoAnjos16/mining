@@ -1,5 +1,5 @@
 import path from "path"
-import { createBoxPlots } from "./time.js"
+import { createBoxPlots, writeTimes } from "./time.js"
 import { loadScenarios, Scenario } from "./load.js"
 import { groupScenarios } from "./group.js"
 import { writeCounts, writePairMetrics, writeToolMetrics } from "./write.js"
@@ -22,6 +22,7 @@ export const computeMetrics = (resultsPath: string, options: AnalysisOptions) =>
   const report = new Report(path.resolve(options.output, 'analysis', options.alias ?? Date.now().toString()))
 
   writeCounts(report, scenarios)
+  writeTimes(report, scenarios.filter(({ comparable }) => comparable))
 
   SUBSETS.forEach(({ name, include }) => {
     const subset = scenarios.filter(include)

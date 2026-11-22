@@ -2,6 +2,7 @@ import * as Plot from '@observablehq/plot'
 import { JSDOM } from 'jsdom'
 import { writeFile } from '../utils/file.js'
 import { Scenario } from './load.js'
+import { Report } from './report.js'
 import path from 'path'
 
 type TimeMeasurement = {
@@ -21,6 +22,23 @@ const AGGREGATIONS = [
   { name: 'without-first', minMeasurements: 2, aggregate: (values: number[]) => mean(values.slice(1)) },
   { name: 'trimmed', minMeasurements: 3, aggregate: trimmedMean }
 ]
+
+const round = (value: number) => Number(value.toFixed(3))
+
+export const writeTimes = (report: Report, scenarios: Scenario[]) => {
+  const rows = scenarios.flatMap(({ project, language, filepath, sameSides, tools }) =>
+    Object.entries(tools).map(([tool, { timeMeasurements }]) => ({
+      project,
+      language,
+      file: filepath,
+      'same sides': String(sameSides),
+      tool,
+      ...Object.fromEntries(AGGREGATIONS.map(({ name, minMeasurements, aggregate }) =>
+        [name, timeMeasurements.length >= minMeasurements ? round(aggregate(timeMeasurements)) : '']))
+    })))
+
+  report.writeTable('times.csv', ['project', 'language', 'file', 'same sides', 'tool', ...AGGREGATIONS.map(({ name }) => name)], rows)
+}
 
 const computeMeans = (scenarios: Scenario[], { minMeasurements, aggregate }: (typeof AGGREGATIONS)[number]) => {
   const means: TimeMeasurement[] = []

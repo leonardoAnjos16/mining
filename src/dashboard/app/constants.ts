@@ -39,6 +39,12 @@ export const TIME_PLOTS: Record<string, string> = {
   'all': 'Mean of all runs'
 }
 
+export const TIME_SCALES: Record<string, string> = {
+  'log': 'Log',
+  'linear': 'Linear',
+  'boxes': 'Linear, boxes only'
+}
+
 export const CASE_METRICS: Record<Metric, { name: string, description: (tool: string, otherTool?: string) => string }> = {
   'afp': { name: 'AFP', description: (tool, otherTool) => `${tool} reports a conflict, while ${otherTool} merges cleanly and matches the merge commit. Outcome labels explain why a case is in this group.` },
   'afn': { name: 'AFN', description: (tool, otherTool) => `${tool} merges cleanly but differs from the merge commit, while ${otherTool} reports a conflict. Outcome labels explain why a case is in this group.` },

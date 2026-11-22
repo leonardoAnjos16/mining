@@ -24,6 +24,9 @@ dd { margin: 0; }
 img { max-width: 100%; border: 1px solid #d0d7de; }
 .hide { border: none; background: none; color: #8c959f; cursor: pointer; padding: 0 6px 0 0; }
 .hide:hover { color: #cf222e; }
+.tool-toggles { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-right: 8px; }
+.tool-toggle { border: 1px solid #54aeff; background: #ddf4ff; color: #0969da; border-radius: 12px; padding: 1px 10px; font: 12px/1.5 system-ui, sans-serif; cursor: pointer; }
+.tool-toggle.off { border-color: #d0d7de; background: #fff; color: #8c959f; text-decoration: line-through; }
 #hidden { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 #hidden button { border: 1px solid #d0d7de; background: #fff; border-radius: 12px; padding: 0 8px; cursor: pointer; }
 .scope-only.disabled, .controls label.disabled { opacity: 0.45; }
@@ -99,3 +102,4 @@ button.help:hover { border-color: #0969da; color: #0969da; }
 .loading { color: #59636e; }
 
 .status-invalid { background: #ffebe9; }
+.box-plot { width: 100%; }
