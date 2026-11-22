@@ -34,5 +34,5 @@ export const computeMetrics = (resultsPath: string, options: AnalysisOptions) =>
     })
   })
 
-  report.writePage()
+  console.log(`Wrote ${report.resolve('')}. See it with: npm run dev -- dashboard serve ${path.basename(report.resolve(''))}`)
 }

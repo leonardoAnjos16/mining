@@ -4,6 +4,8 @@ import { runMerge } from "./merge.js"
 import { getAvailableTools } from "./utils/tools/index.js"
 import { runExperiment } from "./experiment.js"
 import { computeMetrics } from "./analysis/index.js"
+import { runCases } from "./analysis/cases/index.js"
+import { checkCases } from "./analysis/cases/check.js"
 
 export type Repo = {
   name: string
@@ -23,6 +25,9 @@ const DEFAULT_OUTPUT_DIR = 'output'
 const DEFAULT_MAX_REPOS = 20
 const DEFAULT_MAX_COMMITS = Number.MAX_SAFE_INTEGER
 const DEFAULT_REPEAT = 1
+const DEFAULT_CASES_PER_GROUP = 10
+const DEFAULT_CASES_SEED = 1
+const DEFAULT_DASHBOARD_PORT = 5173
 
 const program = new Command()
 
@@ -95,12 +100,54 @@ program
   .option('--resume', 'continue the run saved under --alias, skipping scenarios that already have results')
   .action(runExperiment)
 
-program
+const analysis = program
   .command('analysis')
-  .description('Analyse merge experiment and produce results metrics')
+  .description('Analyse merge experiment results')
+
+analysis
+  .command('metrics')
+  .description('Compute metrics from the results of a merge experiment')
   .argument('<results-path>', 'path to the CSV files containing the results of the merge experiment')
   .option('-o, --output <path>', 'path to the output directory', DEFAULT_OUTPUT_DIR)
   .option('-a, --alias <alias>', 'name of the directory in which the analysis will be saved')
   .action(computeMetrics)
+
+analysis
+  .command('cases')
+  .description('Select AFP, AFN and clean-but-different cases, re-run their merges and save them for annotation')
+  .argument('<results-path>', 'path to the CSV files containing the results of the merge experiment')
+  .argument('<projects-path>', 'path to the cloned repositories of the projects in the results')
+  .requiredOption('-a, --alias <alias>', 'name of the analysis directory in which the cases will be saved')
+  .option('-o, --output <path>', 'path to the output directory', DEFAULT_OUTPUT_DIR)
+  .option('-n, --per-group <cases>', 'number of cases selected per pair and metric, and per tool', Number, DEFAULT_CASES_PER_GROUP)
+  .option('-s, --seed <seed>', 'random seed for selecting cases', Number, DEFAULT_CASES_SEED)
+  .action(runCases)
+
+analysis
+  .command('check')
+  .description('Validate the labels and case annotations of an analysis, and list the cases left to annotate')
+  .argument('<alias>', 'name of the analysis directory, as given to "analysis cases"')
+  .option('-o, --output <path>', 'path to the output directory', DEFAULT_OUTPUT_DIR)
+  .option('-g, --group <group>', 'list only the cases to annotate in this group (e.g. afp/diff3/mergiraf), in selection order')
+  .action(checkCases)
+
+const dashboard = program
+  .command('dashboard')
+  .description('Show the results of an analysis in the browser')
+
+dashboard
+  .command('serve')
+  .description('Serve the dashboard, reading results, cases, annotations and labels live')
+  .argument('<alias>', 'name of the analysis directory')
+  .option('-o, --output <path>', 'path to the output directory', DEFAULT_OUTPUT_DIR)
+  .option('-p, --port <port>', 'port to listen on', Number, DEFAULT_DASHBOARD_PORT)
+  .action(async (alias, options) => (await import('./dashboard/server.js')).serveDashboard(alias, options))
+
+dashboard
+  .command('export')
+  .description('Write a static copy of the dashboard into the analysis directory, to open from disk or share as a folder')
+  .argument('<alias>', 'name of the analysis directory')
+  .option('-o, --output <path>', 'path to the output directory', DEFAULT_OUTPUT_DIR)
+  .action(async (alias, options) => (await import('./dashboard/export.js')).exportDashboard(alias, options))
 
 program.parse()
