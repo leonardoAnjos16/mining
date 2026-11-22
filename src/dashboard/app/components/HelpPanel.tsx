@@ -1,18 +1,23 @@
 import type { Label } from '../../../analysis/cases/types'
 import { LABEL_KINDS } from '../constants'
 import { useApp } from '../context'
+import { Badge } from './Badge'
 
 const LabelTable = ({ labels, kind }: { labels: Label[], kind: Label['kind'] }) => {
   if (labels.length === 0) return <p className="description">No labels yet.</p>
   return (
     <div className="table-wrapper">
       <table>
-        <thead><tr>{['label', 'applies to', 'rule', 'example'].map(header => <th key={header}>{header}</th>)}</tr></thead>
+        <thead><tr><th>label</th><th className="applies-to">applies to</th><th>rule</th><th>example</th></tr></thead>
         <tbody>
           {labels.map(label => (
             <tr key={label.id}>
               <td>{label.name}</td>
-              <td className="text">{label.appliesTo.map(LABEL_KINDS[kind].appliesName).join(', ')}</td>
+              <td className="applies-to">
+                <div className="pills">
+                  {label.appliesTo.map(value => <Badge key={value} className={kind === 'behavior' ? `state-${value}` : ''}>{LABEL_KINDS[kind].appliesName(value)}</Badge>)}
+                </div>
+              </td>
               <td className="text">{label.rule}</td>
               <td className="text">{label.example ?? ''}</td>
             </tr>

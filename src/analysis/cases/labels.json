@@ -1,1 +1,54 @@
-[]
+[
+  {
+    "id": "same-lines-changed-differently",
+    "kind": "behavior",
+    "appliesTo": [
+      "conflict"
+    ],
+    "name": "Same lines changed differently",
+    "rule": "Both sides changed the same base lines and their texts differ, so a line-based merge reports a conflict, even if part of the change is identical.",
+    "example": "Left renames a function in an import line; right renames it too and also changes the import path on that line."
+  },
+  {
+    "id": "reformatting-misaligns-tokens",
+    "kind": "behavior",
+    "appliesTo": [
+      "conflict"
+    ],
+    "name": "Reformatting misaligns tokens",
+    "rule": "One side reformatted code (line breaks, indentation) that the other side edited, and the separator-based alignment pairs fragments that differ only in layout or are shifted, so the tool conflicts.",
+    "example": "Right splits an import list over several lines; the conflict block pairs left's `createTheme` with right's `createTheme,` and the next item."
+  },
+  {
+    "id": "resolved-structurally",
+    "kind": "behavior",
+    "appliesTo": [
+      "clean-equal",
+      "clean-different"
+    ],
+    "name": "Resolved structurally",
+    "rule": "The sides' edits are identical or touch different syntax-tree nodes, so the structured merge combines them without conflict.",
+    "example": "Both sides rename the same imported identifier, and only one side also changes the import path; the tool keeps both."
+  },
+  {
+    "id": "reprints-layout",
+    "kind": "behavior",
+    "appliesTo": [
+      "clean-equal",
+      "clean-different"
+    ],
+    "name": "Reprints layout",
+    "rule": "The output differs from the merge commit only in layout, because the tool reprints the merged code in its own formatting.",
+    "example": "A multi-line import list comes out on one line, and the final newline is dropped."
+  },
+  {
+    "id": "compatible-at-syntax-level",
+    "kind": "outcome",
+    "appliesTo": [
+      "afp"
+    ],
+    "name": "Compatible at syntax level",
+    "rule": "A conflicts on textual overlap, but the sides' changes don't conflict at the syntax level (identical changes, or changes to different elements), so B merges them and matches the merge commit by design.",
+    "example": "Both sides rename the same import and one side also reformats it; A conflicts, B keeps the rename and the reformatting."
+  }
+]
