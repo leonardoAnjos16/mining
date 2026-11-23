@@ -1,3 +1,4 @@
+import { groupBy } from "./group.js"
 import { OutputComparison, Scenario, ToolOutcome } from "./load.js"
 
 export type Run = ToolOutcome & { scenario: Scenario }
@@ -78,14 +79,37 @@ const TOOL_METRICS: Metric<Run>[] = [
 ]
 
 const CORRECTNESS_METRICS: Metric<Run>[] = [
+  countRuns('files', always),
   ...countRunsWithPercentage('with conflict', hasConflict),
   ...countRunsWithPercentage('clean and equal to merge', run => !hasConflict(run) && run.equalsMerge),
   ...countRunsWithPercentage('clean and different from merge', run => !hasConflict(run) && !run.equalsMerge)
 ]
 
+const groupComparableByScenario = (runs: Run[]) =>
+  Array.from(groupBy(runs.filter(isComparable), ({ scenario }) => `${scenario.project}##${scenario.mergeCommit}`).values())
+
+const countScenariosWithPercentage = (name: string, match: (scenarioRuns: Run[]) => boolean): Metric<Run>[] => [
+  { name, value: runs => groupComparableByScenario(runs).filter(match).length },
+  {
+    name: `${name} %`,
+    value: runs => {
+      const scenarios = groupComparableByScenario(runs)
+      return toPercentage(scenarios.filter(match).length, scenarios.length)
+    }
+  }
+]
+
+const SCENARIO_CORRECTNESS_METRICS: Metric<Run>[] = [
+  { name: 'scenarios', value: runs => groupComparableByScenario(runs).length },
+  ...countScenariosWithPercentage('with conflict', scenarioRuns => scenarioRuns.some(hasConflict)),
+  ...countScenariosWithPercentage('clean and equal to merge', scenarioRuns => scenarioRuns.every(run => !hasConflict(run) && run.equalsMerge)),
+  ...countScenariosWithPercentage('clean and different from merge', scenarioRuns => !scenarioRuns.some(hasConflict) && scenarioRuns.some(run => !run.equalsMerge))
+]
+
 export const TOOL_TABLES: Record<string, Metric<Run>[]> = {
   'tools.csv': TOOL_METRICS,
-  'correctness.csv': CORRECTNESS_METRICS
+  'correctness.csv': CORRECTNESS_METRICS,
+  'scenario-correctness.csv': SCENARIO_CORRECTNESS_METRICS
 }
 
 const countPairsWithPercentage = (name: string, match: Predicate<Pair>, base: Predicate<Pair>) =>

@@ -10,6 +10,9 @@ type DataTableProps = {
   titleCell?: (row: number, column: number) => string | undefined
 }
 
+const FIRST_COLUMN_WIDTH = 200
+const COLUMN_WIDTH = 130
+
 export const MissingTable = ({ file }: { file: string }) =>
   <p className="description">{file} is missing: run "analysis metrics" with this alias.</p>
 
@@ -29,7 +32,8 @@ export const DataTable = ({ file, formatCell = value => value, styleCell, titleC
   const { columns, rows } = getVisible(table, hidden)
   return (
     <div className="table-wrapper">
-      <table>
+      <table className="data-table" style={{ width: FIRST_COLUMN_WIDTH + COLUMN_WIDTH * (columns.length - 1) }}>
+        <colgroup>{columns.map((column, index) => <col key={column} style={{ width: index === 0 ? FIRST_COLUMN_WIDTH : COLUMN_WIDTH }} />)}</colgroup>
         <thead><tr>{columns.map(column => <th key={column}>{table.headers[column]}</th>)}</tr></thead>
         <tbody>
           {rows.map(({ row, index: rowIndex }) => (

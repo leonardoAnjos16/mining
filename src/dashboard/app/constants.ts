@@ -19,9 +19,17 @@ export const TOOL_COLUMNS: Record<string, string> = {
 }
 
 export const CORRECTNESS_COLUMNS: Record<string, string> = {
+  'files': 'Files where every tool succeeded.',
   'with conflict': 'The tool reported at least one conflict.',
   'clean and equal to merge': 'No conflicts, and equal to the merge commit.',
   'clean and different from merge': 'No conflicts, but different from the merge commit: possibly a missed conflict.'
+}
+
+export const SCENARIO_CORRECTNESS_COLUMNS: Record<string, string> = {
+  'scenarios': 'Merge commits with at least one file where every tool succeeded.',
+  'with conflict': 'The tool reported a conflict in at least one of the merge commit\'s files.',
+  'clean and equal to merge': 'No conflicts, and every file equal to the merge commit.',
+  'clean and different from merge': 'No conflicts, but at least one file different from the merge commit.'
 }
 
 export const PAIR_METRICS: Record<string, { base?: string, description: string }> = {

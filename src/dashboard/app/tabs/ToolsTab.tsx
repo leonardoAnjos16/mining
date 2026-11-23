@@ -1,5 +1,5 @@
 import { CsvTitle, DataTable, Describe, MissingTable } from '../components/DataTable'
-import { CORRECTNESS_COLUMNS, TOOL_COLUMNS } from '../constants'
+import { CORRECTNESS_COLUMNS, SCENARIO_CORRECTNESS_COLUMNS, TOOL_COLUMNS } from '../constants'
 import { useApp } from '../context'
 import { getDir } from '../helpers'
 
@@ -19,5 +19,9 @@ export const ToolsTab = () => {
     <p className="description">Each output compared with the merge commit, ignoring whitespace. Only files where every tool succeeded; the three counts of a row add up to those files.</p>
     <DataTable file={`${dir}/correctness.csv`} formatCell={formatPercentageColumns} />
     <Describe descriptions={CORRECTNESS_COLUMNS} />
+    <CsvTitle title="Correctness per scenario" file={`${dir}/scenario-correctness.csv`} />
+    <p className="description">The same comparison per merge commit, using only files where every tool succeeded; the three counts of a row add up to the scenarios.</p>
+    <DataTable file={`${dir}/scenario-correctness.csv`} formatCell={formatPercentageColumns} />
+    <Describe descriptions={SCENARIO_CORRECTNESS_COLUMNS} />
   </>
 }
